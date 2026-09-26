@@ -1,0 +1,62 @@
+# Registro de taxas e parâmetros. ÚNICA fonte de taxas para o agente.
+# O LLM nunca estima taxa. O código lê daqui. Cada entrada tem fonte, data e status.
+# Taxas em fração ao mês (0.14 = 14% a.m.). Valores "conferir" devem ser validados pelo time antes do pitch.
+
+rotativo:
+  taxa_mes: 0.14
+  fonte: "Base do desafio: juros = 14% do saldo não pago (analise/juros.py). Mercado: 424,5% a.a. jan/26, 436,2% a.a. jul/26 (BC)."
+  status: confirmada
+  regra: "Só até o vencimento seguinte; juros e encargos limitados a 100% da dívida original (Lei 14.690/2023, Res. CMN 5.112)."
+  minimo_pct_fatura: 0.15
+
+parcelamento_fatura:
+  taxa_mes: 0.094
+  fonte: "BC, cartão de crédito parcelado, 194,9% a.a. em jan/2026 (Agência Brasil, 02/2026)."
+  status: confirmada
+  prazos: [3, 6, 10, 12]
+
+credito_pessoal:
+  taxa_mes: 0.06
+  fonte: "Ordem de grandeza da série BC 25464 (crédito pessoal não consignado); valor exato a conferir."
+  status: conferir
+  prazos: [6, 10, 12, 18]
+
+consignado_clt:
+  taxa_mes: 0.035
+  fonte: "Programa Crédito do Trabalhador (2025); médias de mercado; a conferir."
+  status: conferir
+  elegibilidade: "CLT com margem consignável; verificar no ambiente do banco."
+  prazos: [10, 12, 18, 24]
+
+consignado_inss:
+  taxa_mes: 0.018
+  fonte: "Teto CNPS para consignado INSS; a conferir o valor vigente."
+  status: conferir
+  elegibilidade: "Beneficiário INSS com margem. Oferecer só se o cliente pedir e couber (docs/05, princípio 12)."
+  prazos: [12, 24]
+
+cheque_especial:
+  taxa_mes_base: 0.013
+  teto_mes: 0.08
+  fonte: "Base: ~1,3% do saldo negativo por mês (analise/juros2.py). Teto legal 8% a.m. (Res. CMN 4.765/2019)."
+  status: confirmada
+  regra_uso: "Só no grupo A e só se cobrir até o próximo salário."
+
+inadimplencia:
+  rotativo: 0.65
+  familias: 0.058
+  fonte: "BC, julho de 2026 (Galípolo: 65% no rotativo; famílias 5,8%)."
+  status: confirmada
+
+parametros_banco:
+  perda_em_caso_de_calote: null   # DESCONHECIDO; parâmetro do simulador
+  interchange: null               # DESCONHECIDO
+  custo_funding_mes: null         # DESCONHECIDO
+
+regras_plano:
+  parcela_max_pct_sobra_livre: 1.0   # parcela recomendada <= sobra livre do mês
+  reserva_cartao_pct_renda: 0.20     # teto do mês para o cartão enquanto o plano dura (ajustável)
+  faturas_inteiras_para_encerrar: 3
+  sinal_fatura_pct_renda: 1.0        # fatura >= 100% da renda mensal + escolha de pagar menos que o total
+  sinal_faturas_roladas_seguidas: 3
+  grupos: {A: [1, 2], B: [3, 5], C: [6, 12]}

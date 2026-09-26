@@ -1,0 +1,32 @@
+# segredos e ambiente
+.env
+.env.*
+!.env.example
+*.key
+*.json.key
+service-account*.json
+application_default_credentials.json
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# node
+node_modules/
+
+# artefatos de construção das fichas (histórico local)
+.build/
+
+# arquivos temporários e grandes
+output/*.zip
+output/**/~$*
+~$*
+.DS_Store
+*.log

@@ -1,0 +1,405 @@
+Título: Solution planning for well-being
+Início registrado: 2026-09-26T14:32:38.454Z
+Fonte: https://notes.granola.ai/d/e76330ae-b201-4aed-a503-b4a6ac5f5e79
+Obtida em 26/09/2026; reunião pausada segundo o usuário. Transcrição parcial disponível no Granola, sem timestamps por fala. Speaker A/B/etc. são rótulos da fonte e não identidades confirmadas. Erros de transcrição preservados.
+
+Speaker A: a gente precisa pensar, ter definido, bem definido, qual vai ser a nossa solução. Dos pontos que eu anotei, acho que tem um ponto aqui que... Quem é Guilherme? Guilherme, você me passa seu e-mail? Que susto, achei que você ia querer levar embora. Não, não vai não.
+Speaker B: Tá granulando então?
+Speaker C: Hein?
+Speaker B: Tá granulando então?
+Speaker C: Tá sim.
+Speaker B: Boa.
+Speaker D: Boa demais.
+Speaker B: A granola é vida, né?
+Speaker A: Cês tão usando o que pra... Pra?
+Speaker C: Pra... Parava?
+Speaker B: Granola.
+Speaker C: Granola. Chama granola.
+Speaker B: Não, ele é muito bom.
+Speaker C: Ele conecta reunião, faz tudo no celular, é só colocar e depois ele faz um resuminho e tá conectado no cloud.
+Speaker B: Ele tem a gente dentro, né? Então ele já dá um resumo da reunião, tu pode perguntar pra ele, ah, o que foi falado e tal, e ele transmete pra ti.
+Speaker A: Muito obrigada, tá? É muito bom.
+Speaker E: Obrigado.
+Speaker D: Eu tirei foto de ti também. Você quer fazer um grupo de WhatsApp?
+Speaker B: Ah, acho que é uma boa, né?
+Speaker A: Eu sei, eu também tirei fotos, então...
+Speaker B: Enquanto vai falando, eu vou pegando o grupo, o número que você falou.
+Speaker A: Um ponto que eu achei legal que eles falaram foi a questão do bem-estar. financeira, então a nossa solução ela tem que visar esse bem-estar, né? Lógico que é um... bem-estar, foi o que eles falaram, né? E, o que mais que eu lembro deles terem falado? E a questão ali da confiança, então tipo assim, não vai ser um chatbot, né? A nossa solução ela tem que ser, ela tem que ir muito além ali de um chatbot. Mas isso não era útil. Na terça-feira, a gente teve o primeiro treinamento e tudo mais, e eu já comecei a conversar com o meu GPTzinho. Não sei se vocês fizeram isso, tiveram alguma ideia. Eu já vou pensar em algumas coisas, algumas possibilidades. Eu vou trazer uma ideia aqui primeiro, que eu já tinha pedido pra ele. Vou ler aqui, gente.
+Speaker B: Beleza, vou criar o grupo.
+Speaker C: Show. Conseguiu o nosso contato?
+Speaker B: Consegui.
+Speaker C: Foi?
+Speaker B: Tá. Rato.
+Speaker A: Beleza, deixa eu ver se eu puxo ali do notebook, porque aqui no celular ele tá meio lento, a internet.
+Speaker B: Mas assim, a Naí, vocês que são leve mesmo, vocês têm um conhecimento do sistema do loop que tem que ser usado? Ou a ideia é a gente desenvolver por fora e depois jogar pra dentro?
+Speaker C: Então, o que eles estão pedindo lá é o Google ADK, né? Que é o do Vertex AI lá. Eu já usei ele bastante lá na Rainer, é o principal deles. Mas tem algumas lá que eu não usei lá. E é tipo, eu vi que você comentou que usa lá o Cloud Run. O Cloud Run eu nunca utilizei. O pessoal de infra que subiu lá o agente pra gente. De infra não, de SRU. Mas tudo que está lá, o que a gente vai usar efetivamente mesmo, vai ser o Vertex e o... Meu Deus, o de dados lá, esqueci o nome dele.
+Speaker D: É o BigQuery,
+Speaker C: que é onde tem os dados lá pra gente conseguir fazer as análises. Uma coisa que me preocupa são os mil dólares.
+Speaker A: É, eu pedi pra ele fazer aqui o esqueminha dos mil dólares.
+Speaker C: Só pra entender o que que... como que funcionaria da parte do big carry lá, se as carries são cobradas, enfim. Depois a gente baixa na nossa máquina e estrutura nela e investiga o que elas deram lá.
+Speaker A: Eu tenho o Antigua Rapid instalado, tá? E assim, tanto o Antigua Rapid quanto qualquer outro sistema, você não precisa manjar de saber mexer 100%. Se você pedir, Ele faz. Dizendo, ó, integra isso daqui com Big Carry, integra isso aqui com tal. Ele já faz isso pra você. Tanto que, assim, o projeto de... A gente fez um projeto de persona sintética e, tipo assim, precisava de um banco de dados. Qual que a gente usa? Ó, a gente quer o SQL e ele já fez, já deixou tudo estruturado, tudo preparado. Então, por isso que é importante a gente já ter definido o que a gente quer que tenha ali nele e especificado. É o que a gente chama ali de specs, né?
+Speaker C: Sim, as specs.
+Speaker A: Então, quanto mais informação a gente tiver nas nossas specs, melhor vai ser a nossa solução e menos a prova de erro.
+Speaker C: É o TDD, né? O SPRAC developer, como a gente fala, a gente devolve baseado em especificações.
+Speaker B: O meu receio maior por isso é o tempo que a gente tem pra colocar a mão na massa, sabe? Porque assim, tudo bem, eu sou super favorita de produtos, super favorita de especificar, mas aqui é muita velocidade, que a gente vai conseguir entregar em metade do dia.
+Speaker C: Então, mas o cocavel aqui, eu queria estar olhando para os dados já.
+Speaker B: Então, pode ser. São mil casos, né?
+Speaker C: É, são mil pessoas. E aí, qual que é a grande questão aqui? A gente entendeu qual que é o cerne ali, né? Que é a parte do bem-estar financeiro. Só que isso é muito amplo, né? Então, teria que entender ali a questão dessas contas, né? Pra gente ver se a gente acha algum tipo de perfil, padrão de uso, enfim, tem várias coisas que a gente pode analisar ali. Mas a gente pode, enquanto a gente não tem isso, a gente pode pensar em nós aqui. Porque, por exemplo, são cinco perfis totalmente diferentes aqui. e pensar, basicamente, tentar identificar uma dor que a gente possa validar essa dor com os dados, né? Então, eu acho que a dor, ela nasce do nosso bem comum aqui, digamos assim, depois a gente faz essa validação com dados pra ver se realmente existe essa dor ali ou se é uma coisa muito, sei lá, da nossa cabeça.
+Speaker B: Eles comentaram da Resolução 8 do BASSEM e ela é uma diretriz para toda e qualquer gestão financeira, né? Aí eu só, recapitulando aqui o que ela diz com o CHAT-EPT. Ajudar o cliente a organizar o plano de orçamento, incentivar formação de poupança e resiliência financeira, prevenir inadimplência e suprendividamento, considerar o perfil e as necessidades do cliente, ter governança, acompanhamento, controles, métricas e indicadores para verificação e ações em funcionamento.
+Speaker A: Boa.
+Speaker C: Passar uma experiência que eu acho que vai ser legal pra vocês. Recentemente, esqueci o teu nome de novo.
+Speaker E: Lucas.
+Speaker C: Lucas, perdão. Mostrar até pro Lucas. E pro nosso concorrente, infelizmente.
+Speaker B: O Léo.
+Speaker C: Eu construí um agente pra uma assessoria de investimento. E essa agente, ela faz o planejamento financeiro dos clientes deles. Então existe ali um serviço deles que é essa parte do planejamento financeiro. De acordo com o objetivo de vida, gestão patrimonial, sucessório, enfim, N coisas. E aí o que ela faz? Existe uma coleta de informação que é uma reunião, ela fala como está sua vida, o que você tem investido, tem dinheiro lá fora, não tem dinheiro lá fora, como é sua rotina, você tem seguro, tem um DIT, não tem, como que funciona. E aí você pega essa coleta e joga para a dona, e a dona basicamente ela vai ler, e baseado numa certificação que é CFP, ela vai realizar um planejamento financeiro para esse cara. Aí o assessor vai validar esse conteúdo pra ver se faz sentido. Vai dar o pitaco pra ela, porque ela é uma funcionária, né? E ela vai criar uma apresentação já com todo o esquema de planejamento financeiro. Então, ó, você, de acordo com seus objetivos, nesse momento, faz sentido você fazer o quê? Desaloca tudo que você tem em ações, muda pra CDI, faz esse valor e joga pra, sei lá, um... CDB, enfim, ela conhece todos esses produtos, faz essas indicações, claro, o consultor vai guiando ela ali também, baseado no conteúdo. E, no final do dia, é o quê? Qual que é o objetivo desse planejamento financeiro? É manter e fidelizar esse cliente. E trazer um bem-estar também financeiro, né, por quê? Eles atendem muitos médicos, Não sei se vocês sabem, o médico é a profissão mais falida que existe. Por mais que eles ganhem muito dinheiro, eles gastam horrores. Pensam que o dinheiro é infinito, aí chega lá com seus 70 anos, vê que não vai conseguir mais fazer cinco plantão em seguida, e acabam se prejudicando. Então eles trabalham muito em cima disso, dessa consciência e dessa organização. E no final do dia, eles ganham 0,08% do todo o patrimônio Então a ideia não é colocar produto igual abaixo, mas sim é conseguir que eles aconteçam os objetivos deles e permaneçam com a assessoria. Que aqui nesse caso, no final do tudo, né? O que o Itaú quer é isso, manter esses clientes fidelizados e gerar esse valor para que eles não saiam do banco.
+Speaker B: Vocês acham que a gente vai pra uma ideia mais macro, tipo, de olhar... A gente ainda não sabe qual a base que a gente tá falando. Mas vocês acham que a gente tenderia a fazer um desenvolvimento mais macro, que olhasse pra tudo e organizasse, ou por exemplo, a gente sanaria dores específicas?
+Speaker C: Porque aqui a gente tá falando... De verticalizar, que é especializar em alguma coisa muito bem.
+Speaker D: Beleza.
+Speaker E: É, e no começo lá no... Na apresentação do desafio, tá falando pra gente escolher uma jornada específica.
+Speaker A: É, você pode ter vários cenários, mas, não sei, se você é especialista.
+Speaker B: Joguem, vamos jogando em 10. O que que tu falou lá com o jeitão, jeitezinho?
+Speaker A: Eu tô... Vou compartilhar aqui o que ele me respondeu, que aí vocês podem...
+Speaker B: Porque assim, agora a gente tem alta da BED, mas vai sair, né? Então acho bacana a gente investir na
+Speaker C: BED porque vai cair.
+Speaker D: Sim.
+Speaker B: Mas tem a questão do devidamente específico com BED. Uma coisa, quando eu estava falando o que eu sofro com o meu avô, é... eu não consigo pensar em organizar a vida dele financeira primeiro, porque é muito difícil. Mas metade das coisas que ele faz.
+Speaker E: Olá! Olá, tudo bem?
+Speaker C: Tudo ótimo.
+Speaker E: E aí, estão precisando de alguma ajuda?
+Speaker B: Ideias?
+Speaker D: Ideias, sim.
+Speaker A: Não, mas a gente queria a base. Quem não? Não revelou?
+Speaker E: Não foi?
+Speaker D: Acabou de abrir aqui.
+Speaker A: Acabou de abrir agora?
+Speaker C: Aí ó, pronto. Mas como garante?
+Speaker D: Acesse o Google Cloud, que você já está vinculado.
+Speaker E: Olá, olá, tudo bem?
+Speaker B: Grupo 5, né? Ah, beleza, então. Prazer, gente, eu sou a Diácria, feliz de estar aqui hoje com vocês.
+Speaker A: Tudo bem? Tudo bem? E aí, turma?
+Speaker C: Oi?
+Speaker B: Eu sou o Crédito PF, sou gerente de tecnologia. E aí, turma, como vocês estão?
+Speaker A: Empolgadas?
+Speaker B: Sim, 100%. Chegaram na hora que a gente recebeu a base. Você quer falar para a gente o que a gente tem lá dentro?
+Speaker C: Como que é o nome do projeto?
+Speaker B: Mandaram no grupinho? O que vocês estão planejando?
+Speaker A: A gente está lá trazendo uma ideia.
+Speaker E: Prazer.
+Speaker B: Tudo bem, e vocês?
+Speaker E: Eu estou dando uma passada aqui vendo se vocês estão precisando de alguma coisa.
+Speaker B: Ah, boa.
+Speaker C: Por enquanto.
+Speaker B: Qual
+Speaker E: que é o nome do projeto? Só um minutinho, doutor, já tá bom.
+Speaker A: Tá. Ó, o que que ele me trouxe aqui, hein? Tá muito lento o meu WhatsApp aqui, tá na hora de abrir.
+Speaker D: Que beleza, peraí. Eu estou muito a favor, assim, desse específico que o Maná comentou e a gente tentar evidenciar esses dados contundentes. Eu acho que a gente conseguiria entender... a tabela que o Guilherme trouxe, tem ruídos do usuário, dados de tempo, Ano, mês, dia, as granularidades, tipo, descrição, valor, categoria macro, categoria micro, salda pós, parcela atual, parcela total. É uma base de faturamento de extrato mesmo.
+Speaker C: E aí a gente tenta encontrar um
+Speaker D: padrão nesse dado mesmo pra gente especificar e atacar essas dois.
+Speaker B: Mas são mil usuários ou são mil...
+Speaker A: Gente, abre aí esse... Mandei um documento aí onde tá falando o que ele me trouxe de ideia.
+Speaker C: Era gerente de tecnologia na área de crédito.
+Speaker A: Isso.
+Speaker B: Sim, é uma boa.
+Speaker A: Mandei aí no zap. Ele tá sugerindo... Seria uma squad não é um consultor financeiro, mas uma esquadra financeira de IA, e essa esquadra teria ali um diagnóstico financeiro, um planejamento financeiro e um comportamento financeiro. Um agente de diagnóstico, que ele analisaria o extrato simulado fornecido, classificaria a receita, a despesa, blá, blá, O agente de planejamento transformaria o diagnóstico em algo acionável. Então, por exemplo, você recebe R$4.200,00, mas tem R$3.650,00 comprometidos e costuma gastar R$700,00 em despesas variáveis. Mantendo esse comportamento, vai faltar aproximadamente R$150,00 antes do próximo salário. Depois desse desse cenário, o agente comportamental faria o que? Seria uma oportunidade de abordar ele e falar assim, ao invés de você gastar menos, você poderia... Então aqui é a
+Speaker B: ação da IA, mais a oportunidade.
+Speaker A: Isso, porque a oportunidade seria ali, você falar pra alguém que está endividado e precisa de uma experiência diferente, Você precisa começar com uma reserva financeira.
+Speaker B: Vocês não acham que o IAE já é isso?
+Speaker C: É, então, eu tava pensando agora. Porque ela já faz isso pelos exemplos que eles mostraram na tela lá. Ela já tá fazendo isso, né?
+Speaker D: E o que o IAI não cobre dessas dores?
+Speaker C: Então, dessas dores, ela não cobre... Que
+Speaker B: a gente sabe porque ninguém tá lá no beta, né?
+Speaker D: Mas vamos assumir, baseado no que a gente sabe.
+Speaker B: Não, que a gente sabe que ele faz um planejamento e que ele faz jornadas específicas.
+Speaker C: Não, pelo que eu entendi lá, hoje ela não está tendo ação. Ela vira o deep link lá, direciona para um conteúdo, mas ainda não tem nenhum tipo de ação dentro do...
+Speaker B: Ela faz um 360° na primeira análise.
+Speaker C: E é isso.
+Speaker B: E se a gente colocasse o negócio, quando eu estava falando eu pensei, eu já vou para, minha mente já vai para o visual, tá? Mas se tivesse um botão que falasse iniciar jornada, que aí começa essa jornada que vai usar toda essa equilíbrio de planejamento, mas a iniciar jornada é um 360 bem gráfico da questão da locação, já dá alguns insights, inclusive já é um perfil de pessoa que investe. Já é um perfil de pessoa endividada, é um perfil... Porque assim, tem perfis e tem o consumo da conta. Aqui a gente não tá olhando pra open finance, né? A gente tá olhando pra uma base específica de clientes. Então, o que esse cliente é pra nós dentro do Itaú? Ah, é um cliente que é investidor, que é endividado, que só gira a conta no mensal, que só tem conta salário... Porque assim, como eu disse, tem pessoas que a gente não vai precisar olhar pra dentro da nossa base, que o nosso produto realmente não vai agregar porque não é o nosso foco.
+Speaker A: Abre o... coisa que eu mandei, que eu acho que é o próximo ponto aí que tá casando com o que você tá falando. Né? Seria, então, essa... Seria tipo um farol, vamos dizer assim. Né? Que é o que ele tá chamando aqui. É... Então, a proposta. Qual que seria ali a proposta? Que tá ali na página... Vocês conseguiram acessar, gente?
+Speaker B: Eu pedi acesso. Mas fala aí.
+Speaker E: Fala aí. Peraí.
+Speaker B: Fala até pra ficar granulada.
+Speaker A: Deixa o som.
+Speaker C: Mas pra vocês, o que é bem-estar?
+Speaker B: É que eu acho que o bem-estar é o mindset que a gente tem que seguir. Não é assim, a pessoa não tá preocupada em saber qual é a taxa SELIC, não tá preocupada em saber que a normativa do BASIC vai ter na vida dela.
+Speaker A: Ela quer saber como é que ela pode usar o que ela recebe ou transformar isso em prol do bem-estar dela.
+Speaker C: Então, mas ela não sabe disso, né?
+Speaker A: Exato.
+Speaker B: Na verdade, a gente tem que fazer sinal, saber que a gente tá preparando pra instalar ela.
+Speaker A: Exato, é isso.
+Speaker C: Eu tenho aquela linha que eu tava até comentando com o Lucas, a do sinal e ruído, né?
+Speaker D: Sim.
+Speaker C: É que eu queria, eu quero ver o que que eles deram de dados pra gente. Tu conseguiu abrir? Consegui, tá, o meu agente tá olhando já.
+Speaker B: Com certeza o Lucas também.
+Speaker D: Sim.
+Speaker C: Eles dão algumas dicas também do que eles querem, né? Então, esses dados, muito provavelmente, existe um perfil ali. Então, eu queria entender que perfil que eles estão passando pra gente. Só pra entender se a gente tá ali na linha correta. E aí, a partir daí, a gente já é a ideia.
+Speaker B: Eles falam muito na questão do crédito como oportunidade.
+Speaker C: E é o que dá dinheiro, né?
+Speaker B: Um pai rico, um pai pobre lá que diga, né?
+Speaker D: E como a gente consegue facilitar o entendimento do cliente sem dar aula.
+Speaker C: Exato. Porque não é uma coisa verbosa, né? Eu entendi que é uma coisa muito propositiva, né? Muito proativa ali. Pelo jeito que tá funcionando ali o beta, eles estão nessa linha, né? Porque ela... Você não pede pra ela fazer, né? Ela vai lá e te dá um insight. Você pesca aquilo que você quiser, né?
+Speaker A: Isso, a proposta que ele traz aqui, qual que é o conceito? Um agente multidisciplinar que ele não vai apenas mostrar pra onde o dinheiro foi, que hoje basicamente eles fazem muito isso, né? Mas entende a situação financeira, antecipa problemas e transforma os dados do extrato em um plano personalizado.
+Speaker B: Isso de adiantar eu achei muito bacana, porque por exemplo, a gente tá vivendo o mês, a gente tá aqui vivendo o mês. Aí, nossa, eu sou uma que dependendo da altura do mês eu nem abro mais minha fatura do cartão. E daí seria bacana ter assim, olha, tu tá aqui no sinaleiro, teu sinaleiro tá vermelho, tudo bem, tu tem um dinheiro no teu volume que tá seguindo em outubro e novembro tá ok, mas em dezembro tu não vai ter renda pra ir entrando. Já tá pensando em expandir o teu negócio? Já tá pensando em alguma nova fonte de renda? Ou tu quer já começar a ouvir sobre proposta de crédito? Porque a gente pode pegar o dinheiro hoje, inclusive, e usar a carência pra pagar só em 60 dias e começar a pagar em dezembro.
+Speaker A: Também. Aí, o que que ele fala sobre a questão ali do farol, né? Qual que é a grande pergunta que o farol vai responder ou deve responder, né? Com o dinheiro que eu tenho e o jeito que eu estou gastando, o que preciso fazer agora pra ficar financeiramente melhor? Ou, no caso, pra ficar bem, estar financeiramente melhor. E qual que seria esse, qual que é o problema, né? Que a gente chama ali do job to be done. Os aplicativos hoje, eles vão mostrar o quê? Saldo, categoria, gráfico, histórico, mas não necessariamente traz a compreensão para a pessoa. Então a pessoa sabe que ela gastou 900 reais em alimentação e ainda assim ela não sabe, se isso é muito para a realidade dela, ela vai conseguir pagar as contas? Onde ela pode economizar? O que ela deveria fazer primeiro? E o problema que a gente vai atacar não é a falta de dados, a dificuldade de transformar esses dados em decisões financeiras que sejam simples e aplicáveis ali para a realidade da pessoa. Aí ele fala da pessoa, o job to be done ficaria assim, quando eu estiver tentando organizar minha vida financeira, quero entender rapidamente minha situação e saber qual é a próxima melhoração para tomar decisões sem precisar dominar finanças.
+Speaker B: É, mas eu acho que de novo a gente tá sendo muito generalista.
+Speaker C: Se você concordar, a gente pode analisar essa base rapidinho antes de começar?
+Speaker A: Pode, manda pra lá, se você conseguir
+Speaker C: aí já... Aí, com base no que a gente pegar ali também, a gente consegue tomar, até melhor, alguma decisão mais assertiva.
+Speaker B: Tomara que seja uma base só de netimplante.
+Speaker A: Boa.
+Speaker B: De devedor de corte.
+Speaker A: Essa foi uma primeira ideia. Aí, o que eu pedi pra ele? Beleza, eu quero uma segunda ideia, só que usando gamificação. Então, por exemplo, se a gente trazer nesse diagnóstico, falando, olha, do jeito que você tá indo, você não vai ter dinheiro pra pagar em dezembro, mas o que você pode fazer? Se você, sei lá, aplicar lá no... guardar não sei quanto por mês, você vai ter ali um dinheirinho a mais e trazer gamificação, por exemplo, ele ganha pontos e esses pontos ele pode trocar no shopping do Itaú.
+Speaker B: E se, então, aproveitando a ideia do shopping do Itaú, é por isso que vocês vão achar os resultados e a gente fica aqui jogando ideia. E se, como... Ah, beleza, detectamos que o cara não tem dinheiro e a gente vis... que a gente tá PF, né? Mas se a gente olhasse pro PJ, a gente poderia colocar os produtinhos dele no Itaú Shopping. Só joguei.
+Speaker A: É, não, não, sim, sim, sim. Aí, nessa, pensando nessa ideia ali, do... da gamificação que ele trouxe, e eu não coloquei não no documento, tô colocando agora, tá? A gente, ele teria a missão ali da semana, né? Então, beleza, a sua missão aqui, ó, encontrei uma oportunidade pra você. Nas últimas quatro semanas, cerca de R$420 foram gastos em pequenas compras abaixo de R$40. Não precisa cortar tudo. Que tal começar com uma missão? E aí ele sugere. A missão dessa semana é economizar R$50. Você tem ali o prazo de sete dias. Qual que é a sugestão que a gente traz? Reduzir ali dois pedidos de delivery. E aí ele aceita a missão? Beleza. Se ele aceitar a missão, O que ele vai fazer? A gente tem ali o diagnóstico, que é um agente, seria um skill. O estrategista vai falar qual é a mudança que ele pode fazer para atingir aquele objetivo. E o coach, que é transformar isso em comunicação motivadora e não julgadora. E o guardião vai impedir que a gente dê alguma recomendação inadequada. Na gamification, a gente poderia utilizar uma gamificação baseada em progresso pessoal. Como é que ficaria? Ele não ganha porque tem dinheiro, ele progride porque ele desenvolve hábitos financeiros. Economizar, deixar lá o valor... Aí a
+Speaker B: gente educa até ele notar que está sendo educado.
+Speaker A: É, exato. Aí, tipo assim, aí ela vai criar missões a partir do comportamento da pessoa. Ela tá gastando muito, sei lá, com comida. Então, a sua missão essa semana é reduzir o seu gasto em comida em X valor. Beleza. E aí, né? Ele fazendo isso, ele vai ganhar uma pontuaçãozinha. Aqui tá falando XP financeiro, que a gente não usaria esse nome, óbvio, né?
+Speaker B: Mas tem os níveis, sabe? O Itaú tem os níveis. Tem?
+Speaker A: Poderia usar isso. E aí tem, por exemplo, ele ganha se ele concluir a missão, 100 pontos. Se ele cria a primeira meta, 50 pontos. Se ele revisou os gastos, 20 pontos. Se ele criou uma reserva, 100 pontos. E aí, teria isso.
+Speaker C: Ó, uma coisa aqui pra você ir pensando enquanto tá analisando. Vocês viram a ficha de submissão? Nós temos seis perguntas a responder aqui.
+Speaker A: A gente tem que brindar a decisão do que a gente vai fazer de projeto.
+Speaker C: Então, mas aí... É uma guia também de como estruturar melhor essa ideia. Que vai ser o problema, o momento do usuário, a proposta da gente, dados e tecnologia, como a gente mediremos o valor e o escopo da demo. Então, aqui já tem uma guia de como a gente tem que definir essa dor. Por quê? A gente tem que saber qual que é a dor que a gente vai resolver. Porque aqui a gente tá falando só na solução, qual que é a dor.
+Speaker B: A gente tem que analisar os dados?
+Speaker C: Os dados tá analisando aqui.
+Speaker D: Eu tenho algumas coisinhas já aqui.
+Speaker A: A dor seria basicamente isso que eu falei. O cara, ele não sabe o que ele precisa fazer pra ele não ficar vermelho no final do mês.
+Speaker D: Mas como é que a gente evidencia isso com informação?
+Speaker B: Esse seria um princípio ali. Essa é uma das coisas, por exemplo, dependendo do que a gente tiver nos dados, a gente vai encontrar outras. Por exemplo, eu disse que é a BAT, mas a ideia da BAT pode ser para outras coisas. A gente tem uma pessoa que tu autoriza ter acesso aos seus dados financeiros, que também é um cliente TAU, e a pessoa consegue entender e te ajudar a identificar a continuidade das suas finanças, sabe? tu passa pra outra pessoa também a permissão de ver algumas coisas.
+Speaker A: Mas aí isso seria urgente. Acho que passar pra outra pessoa, não sei se...
+Speaker B: É porque assim, de novo, a gente volta numa premissa do usuário. Se eu tô endividado, se eu sei que eu tô... que eu não quero olhar minha futura do cartão, eu não vou olhar. E eu sou um pai de família, sou uma pessoa que estava com uma criança, eu tenho uma curatela, eu sou uma pessoa que... Ou pela quantidade de dinheiro que eu tenho, não quero cuidar disso, quero delegar essa função de me ajudar a administrar.
+Speaker A: É, então, não sei se a pessoa se sentiria confortável, principalmente no caso de Bete.
+Speaker B: A pessoa autoriza, né? E Bete, dependendo do que vai sair, a pessoa vai ter que realmente ter que ter um acompanhamento, igual a... O que os teus lados falaram?
+Speaker D: Eu tô montando o material pra agregar tudo, mas eu tô perfilando esses clientes aqui. São 1.000 clientes realmente, são 457.000 transações. Aí são 35.000 de entradas e 432.000 de saídas.
+Speaker B: Não, fala de novo, eu perdi o número.
+Speaker D: Eu vou mandar uma ordem e-mail.
+Speaker E: A gente tem 25 categorias aqui, né? Isso. Dessas gastas, né? E 50 de micro. Isso.
+Speaker D: E a gente tem uma informação bem valiosa também, que é o saldo após cada transação. Então, a gente consegue dizer não só onde o cliente gastou...
+Speaker B: Mas quando ele gastou mais deveria.
+Speaker D: E que decisão que ele tomou que coloca ele em risco. Então, qualquer outra.
+Speaker B: Boa.
+Speaker E: E essa pode ser a nossa intervenção.
+Speaker B: Se a gente souber também o que da nossa base coloca a pessoa mais em risco, a gente pode tratar essa como uma dobra.
+Speaker E: Isso pode dar um peso para cada categoria.
+Speaker D: Dá, dá tudo isso. Olha, me tira um da TML aqui, deixa eu baixar e mandar pra vocês
+Speaker E: no grupo, pra quem não veja o
+Speaker D: que eu coloquei no satélite.
+Speaker A: Tá, se você quiser colocar nesse documento que eu compartilhei... Pode ser. Fiquem à vontade, que aí já tá lá no... No Meeting. Dê uma olhadinha, que eu acho que talvez traga mais ideias.
+Speaker D: É importante baixar o da TML, porque senão ele fica...
+Speaker B: É, joga lá no...
+Speaker D: Eu vou jogar no grupo aqui mesmo. Mas eu posso colocar o link lá, tá?
+Speaker A: Uhum. Boa.
+Speaker B: Daí ele fica com o material, né?
+Speaker A: É, dá uma olhadinha no documento pra ver se você acha que talvez tenha
+Speaker E: mais... Ô Mana, como que você tá rodando os negócios? Você colocou o antigravity pra rodar no GCP ou você tá rodando no local?
+Speaker C: Eu tô... Eu, na verdade, eu tô... Eu coloquei no mínimo, no máximo, um dólar a consulta pra não explodir lá, mas tô usando o... o códex. Fiz a conexão lá na conta, no GCP, e estou usando o códex para poder fazer o gerenciamento aqui das estruturas.
+Speaker E: Como você fez para conectar, pegar uma chave da PI2?
+Speaker C: Você instala o GCP na sua máquina, se você já tiver ele instalado, pede para o códex autentificar na sua conta pessoal aí que você passou, e ele vai buscar o projeto. Aí você não precisa nem precisar... ele gerencia tudo. Aí só coloca o limite, ó, minhas consultas não podem estar a um dólar. Aí deixa... Fazer umas carry lá de cinquenta dólares.
+Speaker E: Mas a nossa conta pessoal vai pegar no projeto?
+Speaker C: É, porque ele tá linkado, né? A nossa conta pessoal que tá linkada no projeto.
+Speaker E: Ah, sim. Mas é que eu tenho outras coisas também lá.
+Speaker C: Ah não, mas aí você fala pra ele usar só o projeto da Batalha de Agentes. Aí ele só linka aquilo.
+Speaker A: Se a gente precisar, eu tenho anti-gravity na minha máquina, tá?
+Speaker C: É que o anti-gravity vai comer custo também, vai comer os mil dólares lá.
+Speaker A: Triste.
+Speaker D: É, a gente tem que usar esses toques para fazer o produto funcionar.
+Speaker A: Então, vamos usar o que a gente tiver de opção e deixa para botar lá no máximo.
+Speaker D: Gente, eu tenho algo agregado também aqui, que eu acho legal. Eu tenho um colega que ele foi ex-campeão de hakatun aqui. e ele me deu um overview. Vou mandar aqui no grupo e a gente... Eu acho que a gente tá bem ali, né?
+Speaker C: Isso é muito bom.
+Speaker D: Focar em construir uma solução com pessoas de primeira beleza, entender que tem pessoas muito técnicas e pessoas apenas de negócio. Aí o desafio é otimizar o tempo. Não dá pra fazer tudo o que a gente pensa. Então o ideal é a gente conseguir validar e testar ideias rápido.
+Speaker A: Sim.
+Speaker D: Mas não ter muitos ramos no projeto. Então assim, é uma coisa só, a gente vai direcionar, específico, funilando. E dividir o trabalho, então a gente, não é a intenção de todo mundo fazer um pouquinho, mas a gente conseguir fazer todo mundo uma coisa só. E já deixar alguém pensando no pitch. Desde o início.
+Speaker C: Boa. Então, mas é por isso que é legal a gente já escolher a dor.
+Speaker D: É, então, boa. Aí o que que eu fiz? Eu fiz esse HTMLzinho pra gente já pensar na dor. Ele trouxe aqui bastante coisa. Acho que a hipótese comportamental que ele trouxe aqui...
+Speaker B: A gente não jogou a hipótese, não jogou o HTML no grupo.
+Speaker D: Eu joguei?
+Speaker B: Não.
+Speaker D: Ah, gente, sério?
+Speaker C: Sério, sério, só... Só até os textinhos.
+Speaker E: Desculpa.
+Speaker B: Imperdoável. Melhor eu.
+Speaker D: Ai, eu errei, eu. Nossa, maneira muito pessoal aqui, gente.
+Speaker C: Usuários com registro de juros pago. Todos eles têm juros pagos. Nossa,
+Speaker B: 95% com pelo menos o mesmo fluxo negativo.
+Speaker C: É, entrou no cheque especial, enfim.
+Speaker B: Mas é que o cheque especial tem regra, né? Hoje não pode ficar mais de dois meses utilizando o saldo que eles são obrigados a renegociar.
+Speaker C: Ih, já fiquei quase um ano.
+Speaker D: Nossa, é muito legal ver essas informações que a gente começa a basear no store térmico, que é realmente parte da premissa, que o cliente consegue tirar o quanto ele possui agora, mas ele não consegue mensurar o quanto ele pode gastar sem comprometer o restante do mês.
+Speaker A: É, então, acho que casa bem com o que ele trouxe lá do farol, né? mencionei lá no documento?
+Speaker E: Isso.
+Speaker A: Tá. Ó, aí tem... Ah, bacana, é o foral, né?
+Speaker D: Não. É um... É um partilhamento, né?
+Speaker A: Sim.
+Speaker B: Tá, mas se repressa as pessoas aqui, se perguntar quanto realmente eu posso gastar, a gente tem que falar, nada! Seu atendedor!
+Speaker D: E a ideia aqui é a gente conseguir estruturar o gasto. Deixar de trazer a abordagem genérica, né? Então, deixar de falar pra ele, ó, só para de gastar aí, chefe.
+Speaker A: É, por isso que talvez a gamificação seria bacana.
+Speaker E: Isso.
+Speaker A: De falar, tipo, cara, sua missão essa semana é economizar 50 reais em comida.
+Speaker B: É, mas o que eles colocam é que 26, 27% dos gastos são com empréstimos e financiamento.
+Speaker C: 30% do perfil ali usa isso.
+Speaker B: Produtos financeiros eu não sei o que seria.
+Speaker C: Então, o que eu vi ali também é que mais de... Cadê? Meu Deus, sumiu.
+Speaker A: Tá, então, no que a gente identificou, nessa base, o principal gasto é com o empréstimo. Deixa eu colocar aqui então pra ver se ele traz alguma outra ideia.
+Speaker B: Um empréstimo e financiamento.
+Speaker D: Só que eu acho que iria um pouco além. Iria ser mais específico, não é? Porque empréstimo é uma coisa que ele tem por muitos anos garantido, né? O empréstimo, ele parte da premissa de ser um...
+Speaker B: Mas depende do empréstimo.
+Speaker D: É, mas por exemplo, se você fizer um financiamento, por exemplo.
+Speaker B: Financiamento a longo.
+Speaker D: É, financiamento a longo prazo, ele tem essa dívida por muito tempo.
+Speaker B: E ele não pode deixar de pagar, senão ele perde o imóvel.
+Speaker D: E aí, o que faz ele acabar com o gasto financeiro? Ele não necessariamente tem o empréstimo, mas o que ele faz a mais que o empréstimo e o financiamento? Então, por exemplo, talvez os produtos financeiros aqui sejam muito mais à dor do que o empréstimo de fato e o financiamento.
+Speaker B: A gente deveria assegurar que esse empréstimo e financiamento não pese tanto que isso não seja colocado em risco.
+Speaker C: Ele gerou uma ideia aqui também. Já tem até nome para o produto. Chama cabe no mês.
+Speaker D: Nossa, legal.
+Speaker B: Dá para botar um i na frente de tal?
+Speaker D: Cabe no mês aí.
+Speaker B: I, cabe no mês, i aí?
+Speaker C: Aí o problema, parcelas ocultam pressão sobre contas futuras. Na base sintética, 29.847 lançamentos foram de parcelamentos, 56.141 com saldo negativo. O momento do usuário. Clientes consideram uma compra em 12 vezes. O contexto. Uso o extrato e informo o preço e condições para ver se vai realmente caber no mês.
+Speaker A: Gente, daqui uns 10 minutinhos já vai estar liberado o console para vocês, tá? Aí vocês já vão conseguir entrar. Vocês já sabem entrar ali no console.
+Speaker C: Ixi, a gente já tá acessando.
+Speaker A: Ah, então tá bom. Então tranquilo, são rápidas. E o Léo também vai mandar no e-mail de vocês uma imagenzinha ali só pra auxiliar mesmo com alguns comandos do GCP, tá bom?
+Speaker C: Beleza.
+Speaker D: Obrigado.
+Speaker A: Daqui uns dois minutinhos já chega o e-mail.
+Speaker C: Obrigado.
+Speaker A: Obrigada.
+Speaker D: Chegou. Então vou chegar.
+Speaker A: Tá vendo?
+Speaker C: a proposta da gente, mostrar se a nova parcela cabe nos meses seguintes. Três capacidades, detectar compromissos, simular e explicar as alternativas. Dados de tecnologia, o BigQuery, cálculo de margem, Gemini e Cloud Run. Como mediremos o valor? Se o cliente entende e escolhe uma alternativa segura, comprovou o valor. Sinais no piloto, compreensão, decisão de parcelas de risco evitadas e utilidade. Desculpa dar demo. Celular em 12 vezes. Análise histórico, simulação, orientação. Limites, sem contratação, sete presumido ou saldo em tempo real. Eu achei legal, mas eu queria... deixa eu explicar...
+Speaker A: Explorar mais a solução.
+Speaker D: Eu fui no mesmo caminho que o seu.
+Speaker C: Foi, né?
+Speaker D: O problema é que a instalação deles vai ser olhar o saldo atual e...
+Speaker C: Não pensar no futuro, né?
+Speaker D: Corridinho. Eles vão olhar o saldo atual sem enxergar o que eles já têm de compromisso no futuro. Então acho que essa é a maior dor que a base tem. E as evidências com dados são 94% dos clientes tiveram em algum mês um fluxo negativo.
+Speaker A: Eles não mandaram documento, né?
+Speaker D: Com saldo negativo? Não. Mas eu mandei outro documento no...
+Speaker A: Não, eu queria...
+Speaker C: Documento? Qual documento?
+Speaker A: É o documento lá da... já pra gente ir colocando.
+Speaker C: Ah, mandou...
+Speaker A: O problema que ele identificou aqui...
+Speaker C: Mandou já, viu?
+Speaker A: Clientes tomam decisões olhando o saldo atual sem enxergar compromissos e comportamentos futuros, percebendo desequilíbrio quando o caixa já está pressionado.
+Speaker D: Essa é a dor macro evidenciada. A dor é que o cliente toma decisão olhando o saldo atual. E aí ele ignora os compromissos e os comportamentos futuros. E aí ele percebe o desequilíbrio quando de fato o caixa já está pressionado. Essa é a dor macro, né?
+Speaker C: Só pensa assim, ó. Todo mundo tá olhando pra essa mesma base.
+Speaker E: É.
+Speaker D: Não, a gente vai afunilar. Não acho que a gente tem que tá atuando exatamente em tudo isso. Como é que a gente afunila? Então, putz, essa dor aí, ela é oriunda do quê?
+Speaker C: O portamento da base, né?
+Speaker B: Tá, agora a gente tem algumas oportunidades aí que a gente viu ali no HTMLzinho. Aí, Mané, vai complementando com as coisas que tu pesquisou daí. Achei bacana. Ali, ó, quando ele fala do espaço de oportunidade. Prevenção de estado negativo. Cliente percebe tarde, o projeto a caixa, intervirantes do evento. Beleza, aqui a solução seria a gente entregar uma timeline pra ele, ele já viu que tá comprometido, ele sabe a gordurinha que ele tem. Comprometimento futuro, salvo, ignora obrigações futuras, calcula margem realmente disponível, entra nessa opção que a gente falou anterior. Cartão e fatura, parcial mínimo, parcial mínimo aumenta a pressão, antecipar impacto nas próximas faturas. Tem um dado aí que fala que 24% pagou menos... Olá!
+Speaker E: É, a Pati já passou aqui, a Patrícia, avisando do remanejamento dos grupos.
+Speaker B: Não, remanejamento dos grupos?
+Speaker E: É, vocês estão na sala certa e tudo mais, a gente só teve, como não foi totalmente o quórum de pessoas, aí de 14 virou 11, tá, grupos. Vocês já estão no local certo, a gente só estava remanejando ali, as pessoas ali. Então, por exemplo, se vocês estavam num grupo com outro número, possivelmente daqui a uns 10 minutos vão mandar um F5 lá no console, agora esse é o grupo certinho já, e aí a gente também se preocupou em retirar dos grupos 12, 13, 14, que não existem mais, possíveis acessos que as pessoas tivessem ali também. Então, só pra não ter 2 mil dólares do nada, né?
+Speaker D: É, claro, justo.
+Speaker E: Beleza?
+Speaker C: Fechou.
+Speaker E: Mandei também um e-mail pra vocês, com um SVG, que tem ali tipo um guia de como começar, o link da
+Speaker C: console também, Estou olhando aqui. Fechado.
+Speaker E: Muito legal. Depois eu passo novamente aqui, caso vocês tenham alguma dúvida. Só estou passando primeiro dando esse recado e depois eu passo aí de novo.
+Speaker D: Combinado.
+Speaker A: Beleza.
+Speaker F: Show de bola.
+Speaker A: Muito obrigada.
+Speaker E: Valeu.
+Speaker B: Ah, esqueci, eu estava falando do cartão barra fatura. Tem um dado que fala que 25% da base pagou menos do que o total da fatura. Gente, ele é do meu celular?
+Speaker D: Eu acho que foi um...
+Speaker B: Eu acho que ele está mandando uma caixão editora.
+Speaker E: Talvez.
+Speaker D: Qual que é o dado de submetido, perdão?
+Speaker B: O 25% da base pagou a fatura do cartão abaixo do valor máximo. Eu não sei se 25 é tão relevante assim.
+Speaker C: A gente tem 45 minutos pra poder preencher e submeter.
+Speaker B: Mas o preenchimento e submeter o granola também nos ajuda, né? Recorrência que são os pequenos gastos percebidos e reserva, não sobra.
+Speaker C: Só que vamos fazer assim, pra gente ficar mais tranquilo na submissão. Ali eu acho que é mais a gente focar na dor, porque ali eu acho que depois a gente pode alterar a forma que a gente vai resolver isso. Não é a solução, exato. Então, a gente já focar numa dor, E a gente trabalha em cima dessa dor, porque vão ser vários caminhos que a gente pode seguir. Então acho mais entender a dor, dor que a gente vai resolver e a partir da dor a gente já consegue preencher ali as demais coisas. E pensando aqui em tudo que a gente falou aqui...
+Speaker A: Eu acho que essa dor que tá ali no coisa, que a gente falou, ela funciona. Só precisa ver a questão do cartão de crédito. A gente colocaria Qual dor tá falando? Essa que ele tá lá no HTML?
+Speaker C: Ah, então, mas aquilo ali também é comportamento, né?
+Speaker B: É.
+Speaker C: A dor aqui, no caso, é desorganização financeira. Essa é a dor. Eu acho que...
+Speaker B: A dor é ele não ter bem-estar no fechamento do mais-de.
+Speaker C: Isso, mas se fosse traduzir ali... O que a gente vai solucionar seria a desorganização financeira dele. Só que também é genérico demais, né?
+Speaker A: Tem gente que enche o saco de
+Speaker F: vocês o tempo todo, né?
+Speaker A: A gente gosta.
+Speaker F: Gente, eu passei só pra saber primeiro como que vocês estão. Como que vocês estão? Se tem algum problema eu entrego dois recados. Primeiro, pelos recados que só tem coisa boa. Como já mandaram no grupo, tem café, doce, qualquer coisa que vocês quiserem pra aumentar a energia até a hora do almoço. Do outro lado dos elevadores, fiquem à vontade pra pegar e comer aqui. Segundo, a submissão é até uma da tarde. Então, antes da meia-de-meia, a gente coloca mais uma gordurinha de 30 minutos, que é basicamente quando vocês vão descer pra almoçar. Beleza? Se posso dar uma dica, eu sei que as escolas ainda não estão 100%, eu sei que o André tava aqui, Nesse momento, foquem mais em responder bem feito aquele forms de uma forma que estruture bem a solução. Beleza? Tem alguma dúvida?
+Speaker C: Boa, essa é do forms. O que a gente preencheu lá, a gente vai poder pivotar?
+Speaker F: Ou... Me fizeram essa mesma pergunta. Sim, mas com uma boa justificativa. Por exemplo, eu acho que faz parte de qualquer ecossistema de inovação pivotar. Normal? Só que é necessário que, pô, vocês tenham uma boa justificativa até pensando que o tempo do evento é curto, né?
+Speaker C: Sim, sim.
+Speaker F: Então, sejam bem estratégicos, mas assim, se em último caso precisou pivotar com uma boa justificativa, vai ser super considerado e vamos junto.
+Speaker C: Boa. É porque aqui, né, tem o problema, momento do usuário, propósito da gente, dados e beleza. Estou falando assim, beleza, escolhemos a dor, mas pode ser que a solução ali, o problema, as coisas que a gente vai fazer, vai mudar. Mas a dor é a mesma.
+Speaker F: Perfeito, acho que vale ser um pouco estratégico, até pela perícia que você já tem, de como talvez ser mais diretivo ou um pouco mais abrangente até na proposta e depois talvez fazer algumas renúncias. Então, que faz parte também da nossa cultura, a gente faz escolhas, consequentemente renúncias. Mas, por isso, façam com muito carinho esse formulário.
+Speaker C: Beleza.
+Speaker F: Mais algum ponto?
+Speaker C: Por enquanto, não.
+Speaker F: Gente, aproveitem o evento. Qualquer coisa mandem no grupo. O sistema já vai refletir.
+Speaker B: Tchau.
+Speaker D: Outra pergunta. A disponibilidade dos mentores, eles vão vir aqui com qual frequência?
+Speaker F: Qualquer ideia, tá? Gente, logo depois do almoço eles vêm aqui pra se apresentar. Alguns já se apresentaram, outros ainda não. Alguns estão chegando. Depois disso, vocês vão ver vários mentores. Então, além do mentor fixo de vocês... Por exemplo, eu não sou, mas vamos supor que eu sou o mentor de vocês. Eu vou vir me apresentar logo no começo da tarde. E depois, durante a tarde, Outros mentores Coringa passam primeiro. Pra ouvir um pouco vocês, talvez trazer expertises diferentes, como por exemplo, vou dar um exemplo super genérico. Genérico não, super específico. Eu tenho um agente só de responsa do AI, que é a Bárbara, que é a chefe inclusive da Laís e do Marcos. Cara, é uma pessoa que ela vai ficar com uma squad específica, mas o know-how dela é riquíssimo pra ficar guardado com um time só. Então é alguém que provavelmente vai passar pelas outras áreas. Pelos outros aspectos. Beleza? Resumindo, você vai ter um encontro mais marcante logo depois do almoço. E 5h30, aí cara, 30 minutos do seu mentor com vocês. Mostrando a ideia do que vocês pensaram. Debate de só vocês e o mentor de vocês.
+Speaker A: Mas bom, gente... Bom, se puder, filha, pra Jaque vir aqui, a gente...
+Speaker C: É ela que vai fazer a nossa mentora.
+Speaker A: É, então...
+Speaker C: Mas é somente depois do almoço.
+Speaker A: Só depois do almoço. Que a gente queria uma ajudinha, que é a ideia.
+Speaker F: só depois do almoço. Subimento é a primeira proposta.
+Speaker E: Combinado.
+Speaker A: Tá. Oi!
+Speaker C: A gente precisa perguntar como é que tá umas coisinhas, alguma coisa que possa ajudar, e a gente não dorme nisso. Por enquanto, tranquilo.
+Speaker B: Tudo claro. Agora a senhora vai estar a escolha.
+Speaker C: Boa. Aí essa sala aqui, a gente vai descer para o almoço... Uma hora, uma hora.
+Speaker A: A gente pode deixar as coisas aqui enquanto for descer?
+Speaker F: Essa casa de dentes...
+Speaker C: É o mundo de vocês.
+Speaker F: Boa.
+Speaker C: Aí eu venho, então, aqui há uma hora e eu levo vocês para onde a gente estava lá para almoçar. Fechou.
+Speaker F: Tá bom.
+Speaker B: Muito obrigada. É, eu... Ok, eu entendo a questão do planejamento, mas eu fico pensando... E a gente já faz isso. Eles mostraram. Ele já fala, já pergunta se pode, ah, eu posso comprar?
+Speaker C: Tá, mas ele não tem ação, né?
+Speaker B: Mas tu acha que a gente vai conseguir desenvolver em um final de semana, em poucas horas, a ação dele?
+Speaker C: Ah, não, mas é um protótipo, né?
+Speaker A: Eu acho que a gente tá indo,
+Speaker B: talvez, muito pro genérico, sabe?
+Speaker C: Beleza, então, é que assim, eu tô pensando em... A questão da dor, cara, ainda tá muito nebuloso isso também.
+Speaker B: A gente não tem conhecimento do usuário fora os dados e a gente pode... Fecha os ouvidos aí, Lucas. A gente pode bater no dado até ele falar o que a gente quer também, entendeu?
+Speaker E: Exato.
+Speaker B: Vamos inverter o jogo, entendeu?
+Speaker C: Sim, sim.
+Speaker B: Entendeu?
+Speaker C: Então, beleza. Vamos pensar em como fazer isso.
+Speaker B: Talvez a gente pode ir para as hipóteses. Árvore de oportunidades. Vamos pensar nas hipóteses que a gente tem, vamos pegar uma que a gente gosta e depois a gente transforma em cima, entendeu?
+Speaker A: Viram a página? A hipótese
+Speaker B: central que ele tá trazendo é a mesma que a menina apresentou, que é entender o hoje, antecipar e agir. aqui, não tem nada disruptivo.
+Speaker D: Gente, tem um loop que acontece. Talvez a gente possa partir desse loop e aí talvez fique específico. O loop é, tem um comportamento, o cliente ele vai, ele gasta sem pensar e 94% da nossa base tem um mês em negativo pelo menos. Ou seja, dos mil clientes, 942 exatamente, ficam negativos pelo menos um mês. Beleza, temos essa premissa. Esse comportamento ele gera um outro, que é a fatura dele atrasa, ou ele não tem jeito de pagar a fatura. E aí paga ela na metade, o mínimo que ele pode pagar, ou paga o parcial.
+Speaker B: Pois é, pessoal, vocês conseguiram conhecer a internet?
+Speaker E: Sim.
+Speaker B: Está precisando de alguma coisa?
+Speaker C: Está tudo certo.
+Speaker D: Obrigado. Beleza. Aí beleza, a gente partiu da premissa que ele gastou sem pensar, aí a fatura dele atrasou, e ele para essa fatura parcialmente, e aí esse público representa 24% da base. E aí esse comportamento ele gera um outro, que é o aumento dos custos que ele tem em produtos financeiros.
+Speaker B: Ele fica mais endividado ainda no próximo.
+Speaker D: Ele fica mais endividado, é um loop.
+Speaker B: Inclusive, isso aqui, Não sei se vocês já fizeram isso aqui, mas eu, inclusive com o Itaú, eu esqueci que eu tinha uma fatura, paguei atrasada, o pagamento não entrou pra fatura, entrou pra outra com uma antecipação, a primeira fatura não parcelou, juro, o negócio é absurdo.
+Speaker A: É uma bola de neve.
+Speaker B: É um juros brutal. Aí tem que entrar em contato com o chat pra alguém te fazer uma antecipação dessa negociação que tu não aceitou, mas que tá na ordem. Pra entrar como crédito na tua fatura, tua próxima fatura vira um valor gigantesco. Então, melhora.
+Speaker C: Mas é muito difícil.
+Speaker D: E aí, ele tem um aumento de custos em produtos financeiros. Que é 18% de custo.
+Speaker B: Ah, mas o custo financeiro é juros?
+Speaker C: Sim, é juros.
+Speaker D: Ele tá arcando com despesas que ele não deveria ter se ele fosse organizar.
+Speaker B: Ou se ele fosse consciente de não gastar tanto. A gente não sabe, a gente só tem fatura do cartão, né? A gente não tem o que ele gasta no cartão. É genérico, fatura de cartão.
+Speaker D: É...
+Speaker B: A gente não sabe o que ele tá gastando no cartão.
+Speaker D: A gente sabe, a gente sabe. Tá definido, tá pré-definido. Eu posso quebrar esses juros financeiros, esses produtos financeiros em outros. Se a gente quiser.
+Speaker E: A gente tem uma assinatura com todas as categorias e uma categoria menor
+Speaker C: Eu baixei o dado, pera.
+Speaker D: Tá, mas você tá fazendo consulta... Ah, eu consegui no Oracle, que também é
+Speaker A: bem... Gente, alguém quer chocolate?
+Speaker B: Não, pega o lanchinho e fala pra nós?
+Speaker C: Eu quero um café.
+Speaker B: Eu pego lá. Eu tô batendo aqui.
+Speaker A: Quer ir rolar, pega o...
+Speaker D: Eu vou querer café também.
+Speaker C: Eu vou rolar, porque eu tenho que
+Speaker E: ir no banheiro, então eu vou rapidinho.
+Speaker B: Perdeu a hora de fazer xixi?
+Speaker A: Eu adoro.
+Speaker B: Mais anunciados aí, que a gente volta com mais comida.
+Speaker A: Já tô pensando no pitch.
+Speaker E: Boa.
+Speaker C: Boa.
+Speaker D: Fechou. Mano, faz sentido isso que eu falei?
+Speaker C: Faz sentido. É que eu gosto de ter a... ter a frase da dor certinho, sabe? Porque assim, eu entendi tudo isso aí, só como a gente traduz isso pra uma dor, entendeu? Unificar isso, inclusive eu vou parar tudo o que a gente falou aqui.
+
