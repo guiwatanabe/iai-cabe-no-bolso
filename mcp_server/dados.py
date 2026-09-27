@@ -12,6 +12,11 @@ from mcp_server import bq
 from mcp_server.core.tipos import Contexto
 
 GOLD = "hackathon_dados.gold_contexto_agente"
+# gold renamed two columns (sql/gold/03_contexto_agente.sql); Contexto keeps the contract names
+_GOLD_COLS = {
+    "saldo_previsto_vencimento_c": "caixa_disponivel_estimado_c",
+    "valor_faltante_c": "valor_faltante_fatura_c",
+}
 TRANSACOES = "hackathon_dados.silver_transacoes_resumo"
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 
@@ -39,7 +44,7 @@ def contexto(cliente_id: str) -> Contexto | None:
     if _fixtures():
         found = _gold_fixtures().get(cliente_id)
         return Contexto.model_validate(found[1]) if found else None
-    cols = ", ".join(Contexto.model_fields)
+    cols = ", ".join(f"{_GOLD_COLS[c]} AS {c}" if c in _GOLD_COLS else c for c in Contexto.model_fields)
     rows = bq.run(f"SELECT {cols} FROM {_tabela(GOLD)} WHERE id_usuario = @cliente_id LIMIT 1", cliente_id=cliente_id)
     return Contexto.model_validate(rows[0]) if rows else None
 

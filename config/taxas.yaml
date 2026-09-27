@@ -1,0 +1,140 @@
+# Registro de taxas e parâmetros. ÚNICA fonte de taxas para o agente.
+# O LLM nunca estima taxa. O código lê daqui. Cada entrada tem fonte, data e status.
+# Taxas em fração ao mês (0.14 = 14% a.m.). Valores "conferir" devem ser validados pelo time antes do pitch.
+
+rotativo:
+  taxa_mes: 0.14
+  fonte: "Base do desafio: juros = 14% do saldo não pago (analise/juros.py). Mercado: 424,5% a.a. jan/26, 436,2% a.a. jul/26 (BC)."
+  status: confirmada
+  regra: "Só até o vencimento seguinte; juros e encargos limitados a 100% da dívida original (Lei 14.690/2023, Res. CMN 5.112)."
+  minimo_pct_fatura: 0.15
+  teto_encargos_pct: 1.0             # juros e encargos limitados a 100% do valor original (Lei 14.690/2023)
+
+parcelamento_fatura:
+  taxa_mes: 0.094
+  fonte: "BC, cartão de crédito parcelado, 194,9% a.a. em jan/2026 (Agência Brasil, 02/2026)."
+  status: confirmada
+  prazos: [3, 6, 10, 12]
+
+credito_pessoal:
+  taxa_mes: 0.06
+  fonte: "Ordem de grandeza da série BC 25464 (crédito pessoal não consignado); valor exato a conferir."
+  status: conferir
+  prazos: [6, 10, 12, 18]
+
+consignado_clt:
+  taxa_mes: 0.035
+  fonte: "Programa Crédito do Trabalhador (2025); médias de mercado; a conferir."
+  status: conferir
+  elegibilidade: "CLT com margem consignável; verificar no ambiente do banco."
+  prazos: [10, 12, 18, 24]
+
+consignado_inss:
+  taxa_mes: 0.018
+  fonte: "Teto CNPS para consignado INSS; a conferir o valor vigente."
+  status: conferir
+  elegibilidade: "Beneficiário INSS com margem. Oferecer só se o cliente pedir e couber (docs/05, princípio 12)."
+  prazos: [12, 24]
+
+cheque_especial:
+  taxa_mes_base: 0.013
+  teto_mes: 0.08
+  fonte: "Base: ~1,3% do saldo negativo por mês (analise/juros2.py). Teto legal 8% a.m. (Res. CMN 4.765/2019)."
+  status: confirmada
+  regra_uso: "Só no grupo A e só se cobrir até o próximo salário."
+
+inadimplencia:
+  rotativo: 0.65
+  familias: 0.058
+  fonte: "BC, julho de 2026 (Galípolo: 65% no rotativo; famílias 5,8%)."
+  status: confirmada
+
+parametros_banco:
+  perda_em_caso_de_calote: null   # DESCONHECIDO; parâmetro do simulador
+  interchange: null               # DESCONHECIDO
+  custo_funding_mes: null         # DESCONHECIDO
+
+regras_plano:
+  parcela_max_pct_sobra_livre: 1.0   # parcela recomendada <= sobra livre do mês
+  reserva_cartao_pct_renda: 0.20     # teto do mês para o cartão enquanto o plano dura (ajustável)
+  faturas_inteiras_para_encerrar: 3
+  sinal_fatura_pct_renda: 1.0        # fatura >= 100% da renda mensal + escolha de pagar menos que o total
+  sinal_faturas_roladas_seguidas: 3
+  grupos: {A: [1, 2], B: [3, 5], C: [6, 12]}
+
+# ---------------------------------------------------------------------------
+# Parâmetros do motor de capacidade e das ofertas (Spec da Gi, 27/09; docs/01 §9).
+# Tudo aqui é lido por cabe_core; nada é estimado pelo modelo.
+# ---------------------------------------------------------------------------
+
+fator_projecao_fatura: 1.33   # só para PROJETAR as próximas faturas (docs/01 §9); a fatura do mês é reconstruída por modo
+janela_meses: 3               # 90 dias: 3 meses fechados antes do mês da fatura, mais o mês
+
+entradas_recorrentes:         # o que conta como renda recorrente (mediana mensal)
+  micros: ["Salario CLT", "Beneficio INSS"]
+  # 13o salario, Bonus PLR e Recebimentos diversos (PIX) viram flag; não contam como renda sem o cliente confirmar
+
+fixos:                        # débitos recorrentes (mesma lista de analise/persona_b.py)
+  micros: ["Mensalidade escolar", "Condominio", "Seguro de automovel", "Energia eletrica", "Agua e esgoto", "Gas",
+           "TV Internet celular e telefone", "Celular", "Emprestimos", "Outros emprestimos", "Consorcio",
+           "Pagamento de aluguel", "Financiamento de imovel"]
+
+essenciais:                   # macros preservadas no cálculo da folga (excluindo micros já contados em fixos e compras no cartão, que já estão na fatura)
+  macros: ["Mercado", "Posto de combustivel", "Transporte publico", "Cuidados pessoais", "Educacao", "Pets", "Casa"]
+
+anomalia:
+  metodo: media_movel_lag
+  desvio_renda_irregular: 0.15   # |entrada recorrente do mês / média dos meses anteriores - 1| acima disso => renda irregular
+  desvio_gasto_atipico: 1.0      # gasto do mês acima de (1 + desvio) x mediana dos meses anteriores => gasto atípico
+  valor_minimo_gasto_atipico: 10000  # centavos; ignora categorias pequenas
+
+grupos:                       # roladas (mínimo ou parcial) nos últimos 12 meses, contando a escolha do mês atual
+  em_dia: [0, 0]
+  escorregao: [1, 2]
+  rolando: [3, 5]
+  no_limite: [6, 99]
+  rotulos: {em_dia: "Em dia", escorregao: "Escorregão", rolando: "Rolando a fatura", no_limite: "No limite"}
+
+cobertura_curta:              # cheque especial por poucos dias até o recebimento
+  produto: cheque_especial
+  teto_dias: 25
+  ampliacao_limite_pct: 0.10
+  grupos: [escorregao, em_dia]
+  conta_voltou_positivo_simulado: true   # DESCONHECIDO na base (saldo_apos não fecha); simulado para a demo
+  convencao_dias_mes: 30
+
+parcelamento:                 # parcelamento que quita a falta e libera o limite
+  grupos: [escorregao, rolando]
+  vezes_por_12_meses: 1
+  prazos_padrao: [6, 10, 12]
+  ordem_produtos: [consignado_clt, consignado_inss, credito_pessoal, parcelamento_fatura]
+  reincidencia_meses: 3       # pedalada em até 3 meses depois do aceite bloqueia nova oferta e chama humano
+
+permitir_prestamista: false   # sem seguro prestamista como garantia (docs/05, sem venda casada)
+texto_condicao: "depende de aprovação"   # nunca "sujeito a"
+
+liberacao_simulada:           # o serviço de crédito do banco é simulado: lista de produtos liberados por cliente
+  padrao: [parcelamento_fatura]
+  por_cliente:
+    "755627ab-804b-4211-b0ea-f4ebacc58716": [cheque_especial, credito_pessoal]
+    "8dc79559-e45a-46bd-bd8d-a9b818642251": [cheque_especial, credito_pessoal]
+    "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b": [consignado_clt, credito_pessoal, parcelamento_fatura]
+
+personas_demo:                # clientes reais da base; apelidos fictícios; datas em que as regras fecham sem olhar o futuro
+  - id: "755627ab-804b-4211-b0ea-f4ebacc58716"
+    apelido: Ana
+    anomes: 202508
+    grupo_esperado: escorregao
+    perfil: "CLT com financiamento imobiliário; PIX mensal estável que só conta como renda se ela confirmar"
+  - id: "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b"
+    apelido: Bruno
+    anomes: 202509
+    grupo_esperado: rolando
+    perfil: "CLT sem financiamento; 4 faturas roladas antes de setembro"
+  - id: "8dc79559-e45a-46bd-bd8d-a9b818642251"
+    apelido: Reserva
+    anomes: 202508
+    grupo_esperado: escorregao
+    perfil: "Reserva da Escorregão"
+
+preco_modelo: null            # não é mais lido: o preço por token (com fonte e vigência) vive em config/finops.yaml (precos); custo em cabe_core/finops.py

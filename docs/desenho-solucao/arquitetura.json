@@ -1,0 +1,362 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Solução Cabe no Bolso",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1290,
+      720
+    ],
+    "views": [
+      {
+        "id": "arquitetura",
+        "label": "Arquitetura",
+        "focus": [
+          "demo",
+          "api",
+          "agente",
+          "gemini",
+          "core",
+          "bq"
+        ],
+        "note": "Um serviço no Cloud Run: a demo chama a API, o motor calcula, o agente explica com o Gemini."
+      },
+      {
+        "id": "engenharia",
+        "label": "Engenharia",
+        "focus": [
+          "build",
+          "api",
+          "guard",
+          "logging",
+          "gemini"
+        ],
+        "note": "Testes antes do deploy, checagens e validador em toda resposta, trace por sessão."
+      },
+      {
+        "id": "ciencia-de-dados",
+        "label": "Ciência de dados",
+        "focus": [
+          "core",
+          "csv",
+          "taxas",
+          "bq",
+          "engine"
+        ],
+        "note": "Medalhão no BigQuery e motor determinístico: todo número nasce em código."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "logging",
+      "type": "cloud",
+      "label": "Cloud Logging",
+      "sublabel": "trace por sessão",
+      "brand": "google-cloud",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "build",
+      "type": "cloud",
+      "label": "Cloud Build",
+      "sublabel": "testes → imagem → deploy",
+      "brand": "google-cloud",
+      "pos": [
+        380,
+        40
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "gemini",
+      "type": "cloud",
+      "label": "Gemini 3.8 Flash",
+      "sublabel": "Vertex AI · global",
+      "brand": "google-gemini",
+      "pos": [
+        890,
+        40
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "demo",
+      "type": "frontend",
+      "label": "Demo web",
+      "sublabel": "celular via QR code",
+      "pos": [
+        40,
+        235
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "API FastAPI",
+      "sublabel": "orquestra o turno",
+      "brand": "fastapi",
+      "pos": [
+        380,
+        235
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "agente",
+      "type": "backend",
+      "label": "Agente ADK",
+      "sublabel": "LlmAgent · prompt da Gi",
+      "pos": [
+        720,
+        235
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "guard",
+      "type": "security",
+      "label": "Checagens + validador",
+      "sublabel": "código + 2º LlmAgent",
+      "pos": [
+        1060,
+        235
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "csv",
+      "type": "database",
+      "label": "CSV de reserva",
+      "sublabel": "extrato sintético",
+      "pos": [
+        380,
+        420
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "core",
+      "type": "backend",
+      "label": "cabe_core",
+      "sublabel": "motor determinístico",
+      "pos": [
+        720,
+        420
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "taxas",
+      "type": "database",
+      "label": "taxas.yaml",
+      "sublabel": "única fonte de taxas",
+      "pos": [
+        1060,
+        420
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "bq",
+      "type": "database",
+      "label": "BigQuery",
+      "sublabel": "medalhão bronze → gold",
+      "brand": "google-cloud",
+      "pos": [
+        720,
+        600
+      ],
+      "size": [
+        190,
+        80
+      ]
+    },
+    {
+      "id": "engine",
+      "type": "cloud",
+      "label": "Agent Engine + MCP",
+      "sublabel": "runtime alternativo",
+      "brand": "google-cloud",
+      "pos": [
+        1060,
+        600
+      ],
+      "size": [
+        190,
+        80
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Cloud Run · cabe-no-bolso · squad-agent-sa",
+      "wraps": [
+        "api",
+        "agente",
+        "guard",
+        "csv",
+        "core",
+        "taxas"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "demo-api",
+      "from": "demo",
+      "to": "api",
+      "label": "HTTPS /api/*",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-agente",
+      "from": "api",
+      "to": "agente",
+      "label": "contexto JSON",
+      "variant": "emphasis"
+    },
+    {
+      "id": "agente-guard",
+      "from": "agente",
+      "to": "guard",
+      "label": "resposta",
+      "variant": "emphasis"
+    },
+    {
+      "id": "agente-gemini",
+      "from": "agente",
+      "to": "gemini",
+      "label": "gera texto",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "guard-gemini",
+      "from": "guard",
+      "to": "gemini",
+      "label": "aprova ou reprova",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "build-api",
+      "from": "build",
+      "to": "api",
+      "label": "deploy",
+      "labelDy": 24
+    },
+    {
+      "id": "api-logging",
+      "from": "api",
+      "to": "logging",
+      "label": "trace",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "api-core",
+      "from": "api",
+      "to": "core",
+      "label": "números",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "core-csv",
+      "from": "core",
+      "to": "csv",
+      "label": "extrato"
+    },
+    {
+      "id": "core-taxas",
+      "from": "core",
+      "to": "taxas",
+      "label": "parâmetros"
+    },
+    {
+      "id": "core-bq",
+      "from": "core",
+      "to": "bq",
+      "label": "DADOS=bigquery",
+      "variant": "dashed",
+      "labelAt": [
+        815,
+        560
+      ]
+    },
+    {
+      "id": "engine-bq",
+      "from": "engine",
+      "to": "bq",
+      "label": "MCP lê a gold",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Arquitetura",
+      "items": [
+        "Um serviço no Cloud Run: demo, API, agente e motor",
+        "Gemini 3.8 Flash via Vertex AI em global",
+        "CSV de reserva com a mesma interface do BigQuery"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Engenharia",
+      "items": [
+        "Nenhuma resposta sai sem checagens e validador",
+        "Testes antes da imagem; identidade sem chave",
+        "Evals: golden set 16/16, exemplos da Gi 22/22"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Ciência de dados",
+      "items": [
+        "Medalhão no BigQuery: 2 bronze → 8 silver → 3 gold",
+        "Fatura, capacidade, grupo e anomalias em código",
+        "Taxas só de taxas.yaml; o LLM só explica"
+      ]
+    }
+  ]
+}

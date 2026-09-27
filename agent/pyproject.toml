@@ -1,0 +1,29 @@
+[project]
+name = "cabe-no-bolso"
+version = "0.1.0"
+description = "Cabe no Bolso: agente que tira o cliente da fatura rolada com um plano que cabe no mês (Time 05, Batalha de Agentes)."
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "google-adk>=1.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "pandas>=2.2",
+    "pyyaml>=6.0",
+    "pytest>=8.0",
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+    "qrcode[pil]>=7.4",
+]
+
+[project.optional-dependencies]
+bigquery = ["google-cloud-bigquery>=3.20"]
+
+# Projeto "virtual": os pacotes (cabe_core, cabe_no_bolso, server) são importados a partir de agent/,
+# sem build. Rode tudo a partir de agent/ (uv run ...), ou exporte PYTHONPATH=agent.
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"

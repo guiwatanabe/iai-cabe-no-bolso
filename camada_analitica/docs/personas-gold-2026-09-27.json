@@ -1,0 +1,214 @@
+{
+ "consultado_em": "2026-09-27T01:15:23",
+ "projeto": "batalha-time-05-xew3",
+ "consultas": 4,
+ "erros": {},
+ "tabelas": {
+  "gold_contexto_agente": [
+   {
+    "id_usuario": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b",
+    "grupo_cliente": "ROLANDO_FATURA",
+    "fatura_estimada": 1768.5808000000002,
+    "saldo_atual": -6473.41,
+    "fatura_cabe": false,
+    "valor_faltante": 8241.9908,
+    "tipo_falta": "ESTRUTURAL",
+    "renda_mensal_estimada": 5097.706666666667,
+    "folga_mensal_estimada": 3558.4900000000007,
+    "qtd_pedaladas_12m": 5,
+    "publico_mvp": true,
+    "elegivel_cobertura_curta": false,
+    "elegivel_parcelamento": true,
+    "acao_motor": "AVALIAR_PARCELAMENTO",
+    "recomendacao_motor": "CONSULTAR_CREDITO",
+    "data_referencia": "2025-12-31",
+    "entradas_90d": 15293.119999999999,
+    "saidas_90d": 25329.079999999998,
+    "dia_recebimento_estimado": 7,
+    "valor_recebimento_tipico": 1893.71,
+    "confianca_recebimento": "ALTA",
+    "gasto_recorrente_mensal_estimado": 1539.2166666666665,
+    "parcelas_futuras_estimadas": 3333.0700000000006,
+    "compras_cartao_mes": 1831.34,
+    "qtd_minimos_12m": 1,
+    "ultima_pedalada": "2025-09"
+   },
+   {
+    "id_usuario": "755627ab-804b-4211-b0ea-f4ebacc58716",
+    "grupo_cliente": "ESCORREGAO",
+    "fatura_estimada": 715.0346000000002,
+    "saldo_atual": 21896.88,
+    "fatura_cabe": true,
+    "valor_faltante": 0.0,
+    "tipo_falta": "SEM_FALTA",
+    "renda_mensal_estimada": 9467.316666666668,
+    "folga_mensal_estimada": 4626.016666666667,
+    "qtd_pedaladas_12m": 1,
+    "publico_mvp": true,
+    "elegivel_cobertura_curta": false,
+    "elegivel_parcelamento": false,
+    "acao_motor": "FATURA_CABE",
+    "recomendacao_motor": "SEM_INTERVENCAO",
+    "data_referencia": "2025-12-31",
+    "entradas_90d": 28401.950000000004,
+    "saidas_90d": 22155.22999999999,
+    "dia_recebimento_estimado": 9,
+    "valor_recebimento_tipico": 2733.57,
+    "confianca_recebimento": "ALTA",
+    "gasto_recorrente_mensal_estimado": 4841.3,
+    "parcelas_futuras_estimadas": 131.66,
+    "compras_cartao_mes": 838.23,
+    "qtd_minimos_12m": 1,
+    "ultima_pedalada": "2025-08"
+   }
+  ],
+  "silver_historico_fatura_12m": [
+   {
+    "id_usuario": "755627ab-804b-4211-b0ea-f4ebacc58716",
+    "qtd_pedaladas_12m": 1,
+    "qtd_minimos_12m": 1,
+    "ultima_pedalada": "2025-08",
+    "grupo_cliente": "ESCORREGAO"
+   },
+   {
+    "id_usuario": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b",
+    "qtd_pedaladas_12m": 5,
+    "qtd_minimos_12m": 1,
+    "ultima_pedalada": "2025-09",
+    "grupo_cliente": "ROLANDO_FATURA"
+   }
+  ],
+  "cash90_hackathon": [
+   {
+    "id_usuario": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b",
+    "dt_min": "2025-10-05",
+    "dt_max": "2025-12-31",
+    "anomes_min": 202510,
+    "anomes_max": 202512,
+    "n": 179
+   },
+   {
+    "id_usuario": "755627ab-804b-4211-b0ea-f4ebacc58716",
+    "dt_min": "2025-10-03",
+    "dt_max": "2025-12-31",
+    "anomes_min": 202510,
+    "anomes_max": 202512,
+    "n": 106
+   }
+  ],
+  "silver_cartao": [
+   {
+    "id_usuario": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b",
+    "anomes": 202505,
+    "compras_cartao_mes": 3039.5800000000004,
+    "compras_mes_anterior": 2801.4,
+    "fatura_estimada": 3725.8620000000005
+   },
+   {
+    "id_usuario": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b",
+    "anomes": 202506,
+    "compras_cartao_mes": 1108.1599999999999,
+    "compras_mes_anterior": 3039.5800000000004,
+    "fatura_estimada": 4042.641400000001
+   },
+   {
+    "id_usuario": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b",
+    "anomes": 202507,
+    "compras_cartao_mes": 1768.8,
+    "compras_mes_anterior": 1108.1599999999999,
+    "fatura_estimada": 1473.8528
+   },
+   {
+    "id_usuario": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b",
+    "anomes": 202508,
+    "compras_cartao_mes": 2397.85,
+    "compras_mes_anterior": 1768.8,
+    "fatura_estimada": 2352.504
+   },
+   {
+    "id_usuario": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b",
+    "anomes": 202509,
+    "compras_cartao_mes": 2094.1,
+    "compras_mes_anterior": 2397.85,
+    "fatura_estimada": 3189.1405
+   },
+   {
+    "id_usuario": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b",
+    "anomes": 202510,
+    "compras_cartao_mes": 1191.4199999999996,
+    "compras_mes_anterior": 2094.1,
+    "fatura_estimada": 2785.1530000000002
+   },
+   {
+    "id_usuario": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b",
+    "anomes": 202511,
+    "compras_cartao_mes": 1329.76,
+    "compras_mes_anterior": 1191.4199999999996,
+    "fatura_estimada": 1584.5885999999996
+   },
+   {
+    "id_usuario": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b",
+    "anomes": 202512,
+    "compras_cartao_mes": 1831.34,
+    "compras_mes_anterior": 1329.76,
+    "fatura_estimada": 1768.5808000000002
+   },
+   {
+    "id_usuario": "755627ab-804b-4211-b0ea-f4ebacc58716",
+    "anomes": 202505,
+    "compras_cartao_mes": 347.15,
+    "compras_mes_anterior": 1062.18,
+    "fatura_estimada": 1412.6994000000002
+   },
+   {
+    "id_usuario": "755627ab-804b-4211-b0ea-f4ebacc58716",
+    "anomes": 202506,
+    "compras_cartao_mes": 359.7200000000001,
+    "compras_mes_anterior": 347.15,
+    "fatura_estimada": 461.7095
+   },
+   {
+    "id_usuario": "755627ab-804b-4211-b0ea-f4ebacc58716",
+    "anomes": 202507,
+    "compras_cartao_mes": 2904.7999999999993,
+    "compras_mes_anterior": 359.7200000000001,
+    "fatura_estimada": 478.42760000000015
+   },
+   {
+    "id_usuario": "755627ab-804b-4211-b0ea-f4ebacc58716",
+    "anomes": 202508,
+    "compras_cartao_mes": 308.21999999999997,
+    "compras_mes_anterior": 2904.7999999999993,
+    "fatura_estimada": 3863.383999999999
+   },
+   {
+    "id_usuario": "755627ab-804b-4211-b0ea-f4ebacc58716",
+    "anomes": 202509,
+    "compras_cartao_mes": 546.27,
+    "compras_mes_anterior": 308.21999999999997,
+    "fatura_estimada": 409.9326
+   },
+   {
+    "id_usuario": "755627ab-804b-4211-b0ea-f4ebacc58716",
+    "anomes": 202510,
+    "compras_cartao_mes": 654.2199999999999,
+    "compras_mes_anterior": 546.27,
+    "fatura_estimada": 726.5391
+   },
+   {
+    "id_usuario": "755627ab-804b-4211-b0ea-f4ebacc58716",
+    "anomes": 202511,
+    "compras_cartao_mes": 537.6200000000001,
+    "compras_mes_anterior": 654.2199999999999,
+    "fatura_estimada": 870.1125999999999
+   },
+   {
+    "id_usuario": "755627ab-804b-4211-b0ea-f4ebacc58716",
+    "anomes": 202512,
+    "compras_cartao_mes": 838.23,
+    "compras_mes_anterior": 537.6200000000001,
+    "fatura_estimada": 715.0346000000002
+   }
+  ]
+ }
+}

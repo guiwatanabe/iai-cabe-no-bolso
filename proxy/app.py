@@ -19,6 +19,8 @@ CLIENTES_DEMO = {
     "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b": "",
     "d6482fe6-8190-4692-8440-4404568dae33": "Daniela",
     "a8d33c9c-48d1-40bf-87ad-deb94e8617e3": "Eduardo",
+    "0ded575c-7653-4ca5-9700-12cb84d55ba3": "Bruno",  # gold: ROLANDO, RECORRENTE, elegível a parcelamento
+    "755627ab-804b-4211-b0ea-f4ebacc58716": "Ana",  # gold: ESCORREGAO, PONTUAL, elegível à cobertura curta
     "fixture-escorregao": "Ana",
     "fixture-rolando": "Bruno",
     "fixture-no-limite": "Carla",

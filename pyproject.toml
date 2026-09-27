@@ -23,6 +23,7 @@ proxy = [
 
 [tool.pytest.ini_options]
 pythonpath = [".", "agents"]
+testpaths = ["tests"]
 
 [tool.uv]
 default-groups = ["dev", "proxy"]
@@ -30,3 +31,5 @@ default-groups = ["dev", "proxy"]
 [tool.ruff]
 line-length = 120
 src = [".", "agents"]
+# pastas vindas de cabe-no-bolso-hml: agent/ tem pyproject, testes e job de CI próprios
+extend-exclude = ["agent", "analise", "camada_analitica", "deploy", "docs/arquivo", "scripts/download_bigquery.py"]

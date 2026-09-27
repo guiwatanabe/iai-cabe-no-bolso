@@ -1,5 +1,6 @@
 -- Checa ausência de NULL em todas as colunas obrigatórias de
--- `mcp_server/core/tipos.py::Contexto` (nenhuma delas é opcional no schema).
+-- `mcp_server/core/tipos.py::Contexto` (nenhuma delas é opcional no schema). Duas têm nome diferente
+-- na gold: caixa_disponivel_estimado_c e valor_faltante_fatura_c (mapeadas em mcp_server/dados.py).
 SELECT COUNT(*) AS linhas_com_nulo
 FROM `batalha-time-05-xew3.hackathon_dados.gold_contexto_agente`
 WHERE id_usuario IS NULL

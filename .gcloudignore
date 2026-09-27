@@ -1,0 +1,34 @@
+# O que NÃO sobe para o Cloud Build em `gcloud builds submit` (deploy/deploy.sh e deploy/cloudbuild.yaml).
+# Sem este arquivo o gcloud gera um a partir do .gitignore; aqui deixamos explícito. Precisa subir: Dockerfile,
+# .dockerignore, agent/ (com tests/, sem .venv), config/, data/, demo/ e deploy/.
+.git
+.gitignore
+.gcloudignore
+.claude
+.DS_Store
+**/.DS_Store
+
+# ambientes, segredos e caches (zero chaves: docs/12-identidade-e-seguranca.md)
+**/.venv
+**/.env
+**/.env.*
+!**/.env.example
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+*.key
+service-account*.json
+application_default_credentials.json
+
+# fora do serviço e dos testes: análise exploratória, camada analítica, docs, fontes, fichas, scripts de download
+analise/
+camada_analitica/
+docs/*
+!docs/prompt-gi-2026-09-27.md
+fontes/
+output/
+scripts/
+/README.md
+CLAUDE.md
