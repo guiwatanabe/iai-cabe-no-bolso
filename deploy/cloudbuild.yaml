@@ -1,0 +1,89 @@
+# CI do Cabe no Bolso no Cloud Build: test -> build -> push -> deploy.
+# Padrão trazido de guiwatanabe/iai-cabe-no-bolso (cloudbuild.yaml do Guilherme): um passo por etapa, imagem
+# etiquetada pelo commit, deploy com a service account de runtime, logging só no Cloud Logging.
+#
+# Como disparar (manual, da raiz do repositório; a configuração `default` do gcloud é de outro cliente):
+#   CLOUDSDK_ACTIVE_CONFIG_NAME=mana-gsoares gcloud builds submit --config deploy/cloudbuild.yaml \
+#     --substitutions=_TAG=$(git rev-parse --short HEAD),_MIN_INSTANCES=1 .
+# Por que manual: o gatilho por push exige conectar o repositório GitHub ao Cloud Build (Cloud Build > Repositórios),
+# o que não foi feito na madrugada. Quando conectar, criar o gatilho apontando para este arquivo, com `_TAG=$SHORT_SHA`
+# nas substituições e "Exigir aprovação" ligado (docs/decisoes.md, 27/09 01h30: CI com aprovação manual). Até lá,
+# deploy/deploy.sh continua sendo o caminho do dia: mesmos flags, executado com as credenciais do Maná.
+#
+# Identidade (docs/12-identidade-e-seguranca.md):
+# - O serviço roda como squad-agent-sa (roles/aiplatform.user, bigquery.jobUser, logging.logWriter, ...). A service
+#   account padrão do Compute NÃO tem aiplatform.user: não usar.
+# - O build roda com a service account de build do projeto. Para o passo `deploy` ela precisa de roles/run.admin,
+#   roles/artifactregistry.writer e roles/iam.serviceAccountUser na squad-agent-sa (para "agir como" a SA de runtime).
+#   Não conferido em 27/09 01h: se `deploy` falhar com "permission denied" ou "iam.serviceaccounts.actAs", conceder
+#   os papéis ou usar deploy/deploy.sh (o Maná tem run.admin e serviceAccountUser na squad-agent-sa).
+# - Nenhuma chave JSON: build e serviço usam a identidade do próprio ambiente (ADC).
+#
+# Rollback (deploy/CHECKLIST.md): gcloud run services update-traffic cabe-no-bolso --region us-central1 --to-revisions=<revisão>=100
+
+substitutions:
+  _REGION: us-central1
+  _SERVICO: cabe-no-bolso
+  _REPOSITORIO: agentes
+  _TAG: manual                       # passe _TAG=$(git rev-parse --short HEAD); num gatilho, _TAG=$SHORT_SHA
+  _IMAGEM: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORIO}/${_SERVICO}:${_TAG}
+  _RUNTIME_SA: squad-agent-sa@${PROJECT_ID}.iam.gserviceaccount.com
+  _MIN_INSTANCES: "0"                # 1 só no dia da demo (sessão em memória, sem cold start); 0 fora dela
+  _MODELO: gemini-3.8-flash          # só responde em GOOGLE_CLOUD_LOCATION=global (us-central1 dá 404)
+  _MODO_CONVERSA: gi                 # gi | tools | sem_llm (o porquê em agent/.env.example)
+  _DADOS: csv                        # csv (embarcado na imagem) | bigquery (cai para csv se falhar)
+  _VALIDADOR_ATIVO: "true"           # false = 1 chamada por turno (~4 s), só checagens em código + guardião (docs/11 §7)
+
+steps:
+  # 1) testes: nenhum chama o modelo (~2 s). Mesma versão de uv (0.11.7) e de Python (3.11) do Dockerfile.
+  - id: test
+    name: ghcr.io/astral-sh/uv:0.11.7-python3.11-trixie-slim
+    dir: agent
+    entrypoint: uv
+    args: [run, --frozen, pytest, -q]
+    env: [UV_LINK_MODE=copy, UV_PYTHON_DOWNLOADS=never, DADOS=csv]
+
+  # 2) imagem: Dockerfile da raiz; .dockerignore deixa só config/, data/, demo/ e agent/
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    waitFor: [test]
+    args: [build, -t, "${_IMAGEM}", -f, Dockerfile, .]
+
+  # 3) Artifact Registry `agentes`
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    waitFor: [build]
+    args: [push, "${_IMAGEM}"]
+
+  # 4) Cloud Run com a service account de runtime e os mesmos flags de deploy/deploy.sh
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    waitFor: [push]
+    entrypoint: bash
+    args:
+      - -euc
+      - |
+        gcloud run deploy "${_SERVICO}" \
+          --project="${PROJECT_ID}" \
+          --image="${_IMAGEM}" \
+          --region="${_REGION}" \
+          --platform=managed \
+          --service-account="${_RUNTIME_SA}" \
+          --allow-unauthenticated \
+          --min-instances="${_MIN_INSTANCES}" \
+          --max-instances=1 \
+          --session-affinity \
+          --concurrency=40 \
+          --cpu=1 \
+          --memory=1Gi \
+          --timeout=120 \
+          --port=8080 \
+          --cpu-boost \
+          --set-env-vars="GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_LOCATION=global,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},DADOS=${_DADOS},BIGQUERY_TABELA=${PROJECT_ID}.hackathon_dados.extrato_sintetico,MODELO=${_MODELO},MODELO_VALIDADOR=${_MODELO},VALIDADOR_ATIVO=${_VALIDADOR_ATIVO},MODO_CONVERSA=${_MODO_CONVERSA},RATE_LIMIT_POR_MINUTO=120,MAX_CONCORRENCIA=40,RAIZ=/app"
+        # Segredo só se algum dia o modelo sair do Vertex (dev): --set-secrets=GOOGLE_API_KEY=gemini-api-key:latest
+        echo "URL: $$(gcloud run services describe "${_SERVICO}" --project="${PROJECT_ID}" --region="${_REGION}" --format='value(status.url)')"
+
+timeout: 1200s
+options:
+  dynamicSubstitutions: true   # _IMAGEM e _RUNTIME_SA referenciam outras substituições
+  logging: CLOUD_LOGGING_ONLY  # obrigatório com service account de build própria; sem bucket de logs no GCS
