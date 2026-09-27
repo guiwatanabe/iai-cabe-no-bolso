@@ -1,46 +1,47 @@
-/* Cabe no Bolso · demo · tokens de docs/06-design-system-ai.md (neutros, sem marca do Itaú) */
+/* Cabe no Bolso · demo · paleta alinhada ao pitch (laranja da ia.i), sem logo nem nome do Itaú */
 
 :root {
-  --fundo: #F3F5F4;
+  /* visual do pitch (ia.i): laranja, cards brancos, botões em pílula; sem logo nem nome do Itaú */
+  --fundo: #F4F4F5;
   --superficie: #FFFFFF;
-  --texto: #16201F;
-  --secundario: #586664;
-  --acento: #0E6B63;
+  --texto: #1C1C1E;
+  --secundario: #6B6B70;
+  --acento: #EC7000;
   --acento-texto: #FFFFFF;
-  --acento-suave: #E3F0EE;
+  --acento-suave: #FFF1E6;
   --ok: #1D7437;
   --ok-suave: #E4F2E8;
   --atencao: #8F5600;
   --atencao-suave: #F8EEDB;
   --critico: #AE2A21;
   --critico-suave: #F9E4E2;
-  --borda: #D9DFDD;
-  --sombra: 0 1px 2px rgba(22, 32, 31, 0.06), 0 4px 12px rgba(22, 32, 31, 0.05);
-  --fonte-titulo: "Archivo", "Helvetica Neue", Arial, sans-serif;
-  --fonte-texto: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
-  --fonte-numero: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
-  --raio: 16px;
-  --raio-botao: 12px;
+  --borda: #E6E6E8;
+  --sombra: 0 1px 2px rgba(28, 28, 30, 0.06), 0 6px 16px rgba(236, 112, 0, 0.08);
+  --fonte-titulo: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Arial, sans-serif;
+  --fonte-texto: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif;
+  --fonte-numero: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif;
+  --raio: 20px;
+  --raio-botao: 999px;
   --toque: 44px;
   --largura: 480px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --fundo: #101716;
-    --superficie: #1A2321;
-    --texto: #F3F5F4;
-    --secundario: #A9B5B2;
-    --acento: #7ED6C9;
-    --acento-texto: #0B1F1D;
-    --acento-suave: #1E3431;
+    --fundo: #121212;
+    --superficie: #1F1F21;
+    --texto: #F2F2F2;
+    --secundario: #A1A1A6;
+    --acento: #FF7A00;
+    --acento-texto: #FFFFFF;
+    --acento-suave: #3A2410;
     --ok: #7FD597;
     --ok-suave: #1C3324;
     --atencao: #E7B95E;
     --atencao-suave: #3A2E12;
     --critico: #F19C94;
     --critico-suave: #3F1E1B;
-    --borda: #2C3836;
+    --borda: #2E2E31;
     --sombra: none;
   }
 }
