@@ -60,7 +60,9 @@ def test_non_json_final_text_is_rejected():
 
 
 def test_tool_calls_and_partials_pass_through():
-    call = LlmResponse(content=types.Content(role="model", parts=[types.Part(function_call=types.FunctionCall(name="x"))]))
+    call = LlmResponse(
+        content=types.Content(role="model", parts=[types.Part(function_call=types.FunctionCall(name="x"))])
+    )
     assert render_answer(SimpleNamespace(state={}), call) is None
     partial = model_says("answered", "[[f1]]")
     partial.partial = True

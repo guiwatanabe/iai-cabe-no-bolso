@@ -9,8 +9,9 @@ from .grounding import Answer
 
 MAX_TOOL_CALLS_PER_TURN = 8
 
-# Cheap first line of defence; swap for a classifier model call if needed.
-_BLOCKED = re.compile(r"ignore (all |the )?(previous|above) instructions|system prompt|drop\s+table|delete\s+from", re.I)
+_BLOCKED = re.compile(
+    r"ignore (all |the )?(previous|above) instructions|system prompt|drop\s+table|delete\s+from", re.IGNORECASE
+)
 
 _REFUSAL = Answer(status="out_of_scope", text="Não posso ajudar com esse pedido.").model_dump_json()
 
@@ -22,9 +23,7 @@ def block_unsafe_input(callback_context, llm_request):
         return None
     text = " ".join(p.text or "" for p in last.parts or [])
     if _BLOCKED.search(text):
-        return LlmResponse(
-            content=types.Content(role="model", parts=[types.Part(text=_REFUSAL)])
-        )
+        return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=_REFUSAL)]))
     return None
 
 
@@ -35,4 +34,3 @@ def limit_tool_calls(tool, args, tool_context):
     if calls > MAX_TOOL_CALLS_PER_TURN:
         return {"error": f"Tool budget of {MAX_TOOL_CALLS_PER_TURN} calls exceeded. Answer with the data you have."}
     return None
-

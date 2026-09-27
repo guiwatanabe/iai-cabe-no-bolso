@@ -7,9 +7,8 @@ unknown id rejects the whole answer, so the model cannot invent a value via a pl
 import re
 from typing import Literal
 
-from pydantic import BaseModel, Field, ValidationError
-
 from google.genai import types
+from pydantic import BaseModel, Field, ValidationError
 
 MAX_ROWS_TO_MODEL = 50
 _REF = re.compile(r"\[\[(f\d+)\]\]")

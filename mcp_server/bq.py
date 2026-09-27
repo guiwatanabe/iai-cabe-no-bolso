@@ -6,8 +6,8 @@ from functools import cache
 
 from google.cloud import bigquery
 
-MAX_BYTES_BILLED = int(os.getenv("BQ_MAX_BYTES_BILLED", 1_000_000_000))
-MAX_ROWS = int(os.getenv("BQ_MAX_ROWS", 200))
+MAX_BYTES_BILLED = int(os.getenv("BQ_MAX_BYTES_BILLED", "1000000000"))
+MAX_ROWS = int(os.getenv("BQ_MAX_ROWS", "200"))
 
 _BQ_TYPES = {bool: "BOOL", int: "INT64", float: "FLOAT64", str: "STRING", date: "DATE"}
 
