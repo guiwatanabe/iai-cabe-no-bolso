@@ -57,6 +57,7 @@ Papel: "Você é o Cabe no Bolso, o agente do banco que ajuda a pessoa a sair da
 uv sync
 cp .env.example .env            # GOOGLE_API_KEY (dev) ou ADC; DADOS=csv
 uv run pytest
-uv run adk web cabe_no_bolso    # Dev UI
+uv run adk web                  # Dev UI; AGENTS_DIR = esta pasta (contém cabe_no_bolso/)
+uv run adk run cabe_no_bolso    # agente no terminal
 uv run uvicorn server.main:app  # API + demo
 ```
