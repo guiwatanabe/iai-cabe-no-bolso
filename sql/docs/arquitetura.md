@@ -15,8 +15,6 @@ cash90_hackathon ───────────────┤
                          │ hist_fatura │
                          │ cartao      │
                          │ features    │
-                         │ ciclo_fatura│
-                         │ transacoes  │
                          └──────┬──────┘
                                 ▼
                          ┌─────────────┐

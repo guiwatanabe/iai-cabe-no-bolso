@@ -17,6 +17,8 @@ from pydantic import BaseModel
 # resolve when the agent runs with CABE_DADOS=fixtures.
 CLIENTES_DEMO = {
     "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b": "",
+    "d6482fe6-8190-4692-8440-4404568dae33": "Daniela",
+    "a8d33c9c-48d1-40bf-87ad-deb94e8617e3": "Eduardo",
     "0ded575c-7653-4ca5-9700-12cb84d55ba3": "Bruno",  # gold: ROLANDO, RECORRENTE, elegível a parcelamento
     "755627ab-804b-4211-b0ea-f4ebacc58716": "Ana",  # gold: ESCORREGAO, PONTUAL, elegível à cobertura curta
     "fixture-escorregao": "Ana",
@@ -32,10 +34,16 @@ Uid = Annotated[str | None, Cookie()]
 
 
 @cache
+def client():
+    # Kept alive on purpose: a collected vertexai.Client closes the HTTP client its agent engine shares.
+    _, project, _, location, *_ = os.environ["AGENT_ENGINE"].split("/")
+    return vertexai.Client(project=project, location=location)
+
+
+@cache
 def engine():
-    name = os.environ["AGENT_ENGINE"]  # projects/{project}/locations/{location}/reasoningEngines/{id}
-    _, project, _, location, *_ = name.split("/")
-    return vertexai.Client(project=project, location=location).agent_engines.get(name=name)
+    # AGENT_ENGINE = projects/{project}/locations/{location}/reasoningEngines/{id}
+    return client().agent_engines.get(name=os.environ["AGENT_ENGINE"])
 
 
 class Liberacao(BaseModel):

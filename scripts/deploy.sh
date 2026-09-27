@@ -30,6 +30,16 @@ bq --project_id "$PROJECT" show agent_logs >/dev/null 2>&1 ||
   bq --project_id "$PROJECT" mk --location="$REGION" agent_logs
 
 engine=$(uv run --frozen python scripts/agent_engine.py "$PROJECT" "$REGION" "$RUNTIME_SA")
+
+# An update still running (another deploy, or an interrupted one) makes adk deploy fail with FAILED_PRECONDITION.
+ops=https://$REGION-aiplatform.googleapis.com/v1beta1/$engine/operations
+while :; do
+  pending=$(curl -fsS -H "Authorization: Bearer $(gcloud auth print-access-token)" "$ops" |
+    jq '[.operations[]? | select(.done != true)] | length')
+  ((pending == 0)) && break
+  echo "Agent Engine is busy with another update; waiting..." >&2
+  sleep 30
+done
 uv run --frozen adk deploy agent_engine --project="$PROJECT" --region="$REGION" --agent_engine_id="$engine" agents/cabe
 
 gcloud builds submit --project "$PROJECT" --region "$REGION" --tag "$IMAGE" .

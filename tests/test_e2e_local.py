@@ -110,7 +110,7 @@ def ana_cobertura(f):
             (
                 f"Oi, Ana. Sua fatura fechou em {f['valor da fatura atual']} e vence "
                 f"{f['dia de vencimento da fatura atual']}. Até lá, a previsão é ter "
-                f"{f['saldo previsto na conta no dia do vencimento da fatura']} na conta."
+                f"{f['saldo previsto no vencimento da fatura (estimativa das entradas e saídas do ciclo, não é o saldo da conta)']} na conta."
             ),
             (
                 "Uma opção é pagar a fatura inteira usando o cheque especial por "
@@ -146,7 +146,10 @@ def test_without_consent_the_tool_only_returns_the_bill_and_an_offer_becomes_the
 
     def tenta_oferta(f):
         assert "custo total da oferta cob_01 (cobertura com cheque especial)" not in f
-        assert "saldo previsto na conta no dia do vencimento da fatura" not in f
+        assert (
+            "saldo previsto no vencimento da fatura (estimativa das entradas e saídas do ciclo, não é o saldo da conta)"
+            not in f
+        )
         return {"mensagens": ["Veja a oferta."], "acao": "mostrar_oferta", "oferta_id": "cob_01"}
 
     out, _ = run(["contexto_fatura", tenta_oferta], state)

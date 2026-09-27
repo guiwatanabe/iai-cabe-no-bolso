@@ -1,0 +1,21 @@
+{
+  "caixa_disponivel_estimado_c": "170466",
+  "confianca_recebimento": "ALTA",
+  "data_simulada": "2025-12-10",
+  "dia_recebimento_estimado": "7",
+  "dia_vencimento": "15",
+  "dias_ate_recebimento": "22",
+  "elegivel_cobertura_curta": "false",
+  "elegivel_parcelamento": "true",
+  "fatura_estimada_c": "198117",
+  "folga_mensal_c": "373309",
+  "grupo_cliente": "ROLANDO_FATURA",
+  "id_usuario": "a8d33c9c-48d1-40bf-87ad-deb94e8617e3",
+  "parcelas_em_curso_c": "69887",
+  "publico_vulneravel": "false",
+  "qtd_pedaladas_12m": "4",
+  "renda_mensal_estimada_c": "430883",
+  "tipo_falta": "RECORRENTE",
+  "valor_faltante_fatura_c": "27651",
+  "valor_recebimento_tipico_c": "430883"
+}

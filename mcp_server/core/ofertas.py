@@ -18,11 +18,11 @@ def ofertas_liberadas(ctx: Contexto, estado: EstadoSessao, taxas: dict) -> list[
     Empty when: no consent; qtd_pedaladas_12m >= regras.pedaladas_sem_credito; reincidencia_pos_credito;
     confianca_recebimento != "ALTA"; tipo_falta == "SEM_FALTA".
     Cobertura: elegivel_cobertura_curta, liberacao.cobertura, cheque_especial_zerado,
-    dias_ate_recebimento <= cobertura_curta.teto_dias, valor_recebimento_tipico_c >= valor_faltante_c.
+    dias_ate_recebimento <= cobertura_curta.teto_dias, valor_recebimento_tipico_c >= valor_faltante_fatura_c.
     Crédito: elegivel_parcelamento, liberacao.<produto>, not credito_usado_12m, taxa_mes not null,
     parcela_c <= folga_mensal_c (PMT over the configured prazos; keep the cheapest fitting prazo per product).
 
-    Pricing: principal = valor_faltante_c for every offer. Cobertura (id "cob_01"): simple pro rata,
+    Pricing: principal = valor_faltante_fatura_c for every offer. Cobertura (id "cob_01"): simple pro rata,
     custo = round(principal x taxa_mes x dias_ate_recebimento / 30). It widens the overdraft limit only when
     cobertura_curta.limite_cheque_especial_c is configured and the gap exceeds it: novo_limite = principal,
     and above limite x (1 + ampliacao_max_pct_limite) there is no cobertura. Crédito ("cons_01", "prest_01"):
@@ -37,7 +37,7 @@ def ofertas_liberadas(ctx: Contexto, estado: EstadoSessao, taxas: dict) -> list[
         or ctx.tipo_falta == "SEM_FALTA"
     ):
         return []
-    principal = ctx.valor_faltante_c
+    principal = ctx.valor_faltante_fatura_c
     ofertas = []
 
     cob = taxas["cobertura_curta"]

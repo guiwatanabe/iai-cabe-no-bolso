@@ -6,6 +6,7 @@
   "env_vars": {
     "MODEL": "gemini-3.5-flash",
     "BQ_MAX_BYTES_BILLED": "1000000000",
-    "BQ_ANALYTICS_DATASET": "agent_logs"
+    "BQ_ANALYTICS_DATASET": "agent_logs",
+    "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY": "true"
   }
 }

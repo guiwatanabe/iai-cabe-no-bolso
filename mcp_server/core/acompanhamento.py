@@ -19,7 +19,7 @@ def acompanhamento(ctx: Contexto, estado: EstadoSessao) -> dict | None:
         return {
             "tipo": "cobertura",
             "status": oferta.get("status", "aguardando"),
-            "valor_c": ctx.valor_faltante_c,
+            "valor_c": ctx.valor_faltante_fatura_c,
             "dia_recebimento": ctx.dia_recebimento_estimado,
             "origem": {
                 "status": "core.acompanhamento",

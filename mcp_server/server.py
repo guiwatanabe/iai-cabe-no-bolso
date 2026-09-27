@@ -68,9 +68,9 @@ PARCELAMENTO: Campos = {
     "custo_total_c": ("custo_total", "custo total ao parcelar a fatura atual em", "BRL"),
 }
 CAPACIDADE: Campos = {
-    "saldo_previsto_vencimento_c": (
+    "caixa_disponivel_estimado_c": (
         "saldo_previsto_vencimento",
-        "saldo previsto na conta no dia do vencimento da fatura",
+        "saldo previsto no vencimento da fatura (estimativa das entradas e saídas do ciclo, não é o saldo da conta)",
         "BRL",
     ),
     "valor_recebimento_tipico_c": ("proximo_recebimento_valor", "valor do próximo recebimento (salário)", "BRL"),
@@ -81,7 +81,7 @@ CAPACIDADE: Campos = {
         "dias",
     ),
     "folga_mensal_c": ("folga_mensal", "folga mensal (renda menos gastos recorrentes)", "BRL"),
-    "valor_faltante_c": ("falta_prevista", "quanto falta na conta para pagar a fatura atual inteira", "BRL"),
+    "valor_faltante_fatura_c": ("falta_prevista", "quanto falta na conta para pagar a fatura atual inteira", "BRL"),
     "parcelas_em_curso_c": ("parcelas_em_curso", "valor mensal das parcelas de compras já em andamento", "BRL"),
 }
 OFERTA: Campos = {
@@ -166,7 +166,7 @@ def contexto_fatura(cliente_id: str = "", estado: EstadoSessao | None = None) ->
     for o in liberadas:
         nome = f" da oferta {o['id']} ({PRODUTO.get(o['tipo'], o['tipo'])})"
         f.add(OFERTA, o, o.get("origem"), f"oferta_{o['id']}_", nome)
-    rot = rotativo.custo_rotativo(ctx.valor_faltante_c, 1, tx)
+    rot = rotativo.custo_rotativo(ctx.valor_faltante_fatura_c, 1, tx)
     f.add(ROTATIVO, rot, rot.get("origem", "core.rotativo"))
     mudar = ofertas.mudar_vencimento(ctx)
     origem_dias = mudar.get("origem", {}).get("dias", "core.ofertas")
