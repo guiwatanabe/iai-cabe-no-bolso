@@ -1,0 +1,8 @@
+# Só a imagem da API + demo (deploy/Dockerfile), usada por deploy/deploy.sh.
+# `gcloud builds submit --tag` sempre usa o Dockerfile da raiz, que neste repo é o do proxy do Agent Engine;
+# por isso a imagem da demo é construída por este arquivo. Uso:
+#   gcloud builds submit --config deploy/imagem.cloudbuild.yaml --substitutions=_IMAGEM=<região>-docker.pkg.dev/<projeto>/agentes/cabe-no-bolso:<tag> .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: [build, -t, "${_IMAGEM}", -f, deploy/Dockerfile, .]
+images: ["${_IMAGEM}"]

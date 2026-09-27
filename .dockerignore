@@ -1,6 +1,30 @@
-.venv/
-.pytest_cache/
-__pycache__/
-.env
-.git/
+# Contexto de build = raiz, para as duas imagens: `Dockerfile` (proxy do Agent Engine) e `deploy/Dockerfile` (API + demo).
+# Cada Dockerfile copia só o que usa; aqui fica fora o que nenhuma das duas precisa e tudo que não pode vazar.
+.git
+.gitignore
+.claude
+.DS_Store
+**/.DS_Store
+
+# ambientes, segredos e caches (em qualquer pasta: agent/.venv e agent/.env não podem entrar na imagem)
+**/.venv
+**/.env
+**/.env.*
+!**/.env.example
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.adk
+*.key
+service-account*.json
+application_default_credentials.json
+
+# fora das imagens: testes da raiz, análise, camada analítica, docs, fontes, fichas
 tests/
+analise/
+camada_analitica/
+docs/
+fontes/
+output/

@@ -1,0 +1,315 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 860" width="100%" height="100%" style="background: #0B0D12; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Gradiente Oficial Itaú -->
+    <linearGradient id="itauOrangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF8A00"/>
+      <stop offset="50%" stop-color="#EC7000"/>
+      <stop offset="100%" stop-color="#C85000"/>
+    </linearGradient>
+
+    <!-- Fundo Escuro dos Cards -->
+    <linearGradient id="cardDarkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1A1D26"/>
+      <stop offset="100%" stop-color="#12141B"/>
+    </linearGradient>
+
+    <!-- Brilho Suave Neon -->
+    <filter id="glowOrange" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <style>
+    /* Traço Animado das Linhas de Fluxo */
+    @keyframes flowPulse {
+      from { stroke-dashoffset: 40; }
+      to { stroke-dashoffset: 0; }
+    }
+    .data-flow {
+      stroke-dasharray: 6, 6;
+      animation: flowPulse 1.4s linear infinite;
+    }
+
+    /* Brilho da Estrela do Mascote */
+    @keyframes sparkPulse {
+      0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+      50% { transform: scale(1.25) rotate(10deg); opacity: 1; filter: drop-shadow(0 0 10px #FFB347); }
+    }
+    .sparkle {
+      transform-origin: 104px 54px;
+      animation: sparkPulse 2.2s ease-in-out infinite;
+    }
+
+    /* Blocos de Código Fixos */
+    .code-box {
+      fill: #0A0C10;
+      stroke: #252A36;
+      stroke-width: 1;
+    }
+  </style>
+
+  <!-- Padrão de Fundo (Grid Minimalista) -->
+  <g opacity="0.04" stroke="#FFFFFF" stroke-width="1">
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40"/>
+    </pattern>
+    <rect width="100%" height="100%" fill="url(#grid)" />
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- CABEÇALHO & BRANDING (Mascote Oficial & Títulos)                   -->
+  <!-- ================================================================= -->
+  <g id="header-branding" transform="translate(40, 25)">
+    <!-- MASCOTE VECTOR -->
+    <g id="mascote-itau" transform="translate(0, 0)">
+      <!-- Estrela Laranja no Topo -->
+      <path class="sparkle" d="M 104 42 Q 104 54 94 54 Q 104 54 104 66 Q 104 54 114 54 Q 104 54 104 42 Z" fill="url(#itauOrangeGrad)" filter="url(#glowOrange)"/>
+      
+      <!-- Fones / Orelhas Robóticas -->
+      <rect x="52" y="74" width="8" height="26" rx="4" fill="#C5C7D0"/>
+      <rect x="148" y="74" width="8" height="26" rx="4" fill="#C5C7D0"/>
+
+      <!-- Cabeça / Capacete Branco -->
+      <path d="M 64 85 C 64 60 78 52 104 52 C 130 52 144 60 144 85 C 144 115 138 120 104 120 C 70 120 64 115 64 85 Z" fill="#F0F2F5"/>
+      
+      <!-- Visor Escuro -->
+      <rect x="73" y="68" width="62" height="42" rx="14" fill="#17191F"/>
+
+      <!-- Olhos Expressivos -->
+      <path d="M 83 88 Q 91 82 94 88" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+      <path d="M 114 88 Q 117 82 125 88" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+      <circle cx="104" cy="95" r="2" fill="#FFFFFF"/>
+
+      <!-- Laptop Escuro com Logo Itaú -->
+      <path d="M 68 108 L 140 108 L 146 134 L 62 134 Z" fill="#1C1E24" stroke="#2D313D" stroke-width="1.2"/>
+      <rect x="96" y="113" width="16" height="13" rx="3.5" fill="url(#itauOrangeGrad)" filter="url(#glowOrange)"/>
+    </g>
+
+    <!-- Títulos Principais (Itaú destacado em Laranja) -->
+    <g transform="translate(160, 48)">
+      <text x="0" y="24" font-size="28" font-weight="900" fill="#FFFFFF" letter-spacing="0.5">Batalha de Agentes <tspan fill="#EC7000">Itaú</tspan></text>
+      <text x="0" y="47" font-size="14" font-weight="700" fill="#EC7000" letter-spacing="1.5">ARQUITETURA DE ONBOARDING, BIGQUERY &amp; GOVERNANÇA GCP</text>
+      <text x="0" y="66" font-size="12" font-weight="500" fill="#8A92A6">Motor Gemini 3.8 Flash • BigQuery (467.585 transações) • US$ 1.000 / Squad • Antigravity Ecosystem</text>
+    </g>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- LINHAS DE CONEXÃO E FLUXO ENTRE AS ETAPAS                         -->
+  <!-- ================================================================= -->
+  <g id="flow-connectors" stroke="#EC7000" stroke-width="2.5" opacity="0.65">
+    <path class="data-flow" d="M 315 470 L 345 470" fill="none"/>
+    <path class="data-flow" d="M 615 470 L 645 470" fill="none"/>
+    <path class="data-flow" d="M 915 470 L 945 470" fill="none"/>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- CARD 1: ACESSO & CLOUD SHELL (ADC)                               -->
+  <!-- ================================================================= -->
+  <g id="card-step-1" transform="translate(45, 175)">
+    <rect width="270" height="580" rx="16" fill="url(#cardDarkGrad)" stroke="#272C3D" stroke-width="1.5"/>
+    
+    <rect x="0" y="0" width="270" height="60" rx="16" fill="rgba(255,255,255,0.02)"/>
+    <circle cx="36" cy="30" r="16" fill="rgba(236,112,0,0.15)"/>
+    <text x="36" y="36" font-size="15" font-weight="800" fill="#EC7000" text-anchor="middle">1</text>
+    <text x="64" y="29" font-size="15" font-weight="800" fill="#FFFFFF">ACESSO &amp; ADC</text>
+    <text x="64" y="45" font-size="11" font-weight="600" fill="#7E879B">Cloud Shell &amp; Credenciais</text>
+
+    <g transform="translate(18, 76)">
+      <rect x="0" y="0" width="234" height="32" rx="6" fill="#141720" stroke="#252A38" stroke-width="1"/>
+      <text x="12" y="20" font-size="11" font-weight="700" fill="#FF8A00">PROJETO:</text>
+      <text x="75" y="20" font-size="11" font-weight="500" fill="#CFD4E2">batalha-time-XX-XXXX</text>
+
+      <text x="0" y="55" font-size="12" font-weight="700" fill="#E2E5EE">Configuração Inicial:</text>
+      <text x="0" y="75" font-size="11" fill="#8F98AE">• Login via e-mail pessoal (@gmail)</text>
+      <text x="0" y="93" font-size="11" fill="#8F98AE">• Definição do Quota Project</text>
+      <text x="0" y="111" font-size="11" fill="#8F98AE">• Orçamento: US$ 1.000 isolado</text>
+
+      <!-- Code Box -->
+      <g transform="translate(0, 130)">
+        <rect class="code-box" width="234" height="155" rx="8"/>
+        <circle cx="14" cy="14" r="3.5" fill="#E05252"/>
+        <circle cx="25" cy="14" r="3.5" fill="#E0A752"/>
+        <circle cx="36" cy="14" r="3.5" fill="#52E078"/>
+        <text x="12" y="42" font-size="10" font-family="monospace" fill="#758099"># No Cloud Shell:</text>
+        <text x="12" y="60" font-size="10" font-family="monospace" fill="#E1E4EA">gcloud config set project \</text>
+        <text x="12" y="76" font-size="10" font-family="monospace" fill="#EC7000">  batalha-time-XX-XXXX</text>
+        <text x="12" y="102" font-size="10" font-family="monospace" fill="#E1E4EA">gcloud auth app-default \</text>
+        <text x="12" y="118" font-size="10" font-family="monospace" fill="#E1E4EA">  set-quota-project $PROJ</text>
+        <text x="12" y="142" font-size="10" font-family="monospace" fill="#52E078">export AGY_ADC_AUTH=true</text>
+      </g>
+
+      <!-- Destaque Governança Itaú -->
+      <rect x="0" y="305" width="234" height="170" rx="8" fill="rgba(236,112,0,0.06)" stroke="rgba(236,112,0,0.25)" stroke-width="1"/>
+      <text x="14" y="328" font-size="12" font-weight="700" fill="#FFFFFF">✓ Governança <tspan fill="#EC7000">Itaú</tspan> Homologada</text>
+      <text x="14" y="350" font-size="11" fill="#9DA7BE">• Menor privilégio habilitado</text>
+      <text x="14" y="370" font-size="11" fill="#9DA7BE">• Geração de SA Keys bloqueada</text>
+      <text x="14" y="390" font-size="11" fill="#9DA7BE">• Consumo auditado por time</text>
+      <text x="14" y="420" font-size="10" font-weight="700" fill="#7E879B" letter-spacing="0.5">STATUS DA SQUAD:</text>
+      <text x="14" y="440" font-size="12" font-weight="800" fill="#52E078">Pronto para Conexão</text>
+    </g>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- CARD 2: AGENT PLATFORM & BIGQUERY DATA                            -->
+  <!-- ================================================================= -->
+  <g id="card-step-2" transform="translate(345, 175)">
+    <rect width="270" height="580" rx="16" fill="url(#cardDarkGrad)" stroke="#272C3D" stroke-width="1.5"/>
+    
+    <rect x="0" y="0" width="270" height="60" rx="16" fill="rgba(255,255,255,0.02)"/>
+    <circle cx="36" cy="30" r="16" fill="rgba(236,112,0,0.15)"/>
+    <text x="36" y="36" font-size="15" font-weight="800" fill="#EC7000" text-anchor="middle">2</text>
+    <text x="64" y="29" font-size="15" font-weight="800" fill="#FFFFFF">AGENT PLATFORM &amp; BQ</text>
+    <text x="64" y="45" font-size="11" font-weight="600" fill="#7E879B">Gemini 3.8 &amp; BigQuery Data</text>
+
+    <g transform="translate(18, 76)">
+      <!-- Box 1: Core Engine -->
+      <rect x="0" y="0" width="234" height="42" rx="7" fill="#141720" stroke="#EC7000" stroke-width="1"/>
+      <text x="10" y="17" font-size="9.5" font-weight="700" fill="#8F98AE">CORE ENGINE:</text>
+      <text x="10" y="34" font-size="13" font-weight="900" fill="#FF8A00">gemini-3.8-flash</text>
+
+      <!-- Box 2: BigQuery Base -->
+      <rect x="0" y="48" width="234" height="42" rx="7" fill="#141720" stroke="#4285F4" stroke-width="1.2"/>
+      <text x="10" y="65" font-size="9.5" font-weight="700" fill="#8F98AE">TABELA BIGQUERY (467.585 LINHAS):</text>
+      <text x="10" y="82" font-size="11" font-weight="800" fill="#4285F4">hackathon_dados.extrato_sintetico</text>
+
+      <text x="0" y="106" font-size="11" font-weight="700" fill="#E2E5EE">Recursos &amp; Integrações:</text>
+      <text x="0" y="122" font-size="10" fill="#8F98AE">• BigQuery Admin &amp; Jobs API ativos</text>
+      <text x="0" y="136" font-size="10" fill="#8F98AE">• Chave restrita no Secret Manager</text>
+
+      <!-- Code Box BQ & Secret -->
+      <g transform="translate(0, 145)">
+        <rect class="code-box" width="234" height="145" rx="8"/>
+        <text x="10" y="20" font-size="9" font-family="monospace" fill="#758099"># Testar BigQuery no terminal:</text>
+        <text x="10" y="36" font-size="8.8" font-family="monospace" fill="#E1E4EA">bq query --nouse_legacy_sql \</text>
+        <text x="10" y="52" font-size="8.5" font-family="monospace" fill="#4285F4">  "SELECT count(1) FROM</text>
+        <text x="10" y="66" font-size="8.5" font-family="monospace" fill="#4285F4">   \`hackathon_dados.extrato_sintetico\`"</text>
+        <text x="10" y="88" font-size="9" font-family="monospace" fill="#758099"># Resgate da API Key:</text>
+        <text x="10" y="104" font-size="8.8" font-family="monospace" fill="#E1E4EA">API_KEY=$(gcloud secrets \</text>
+        <text x="10" y="118" font-size="8.8" font-family="monospace" fill="#EC7000">  versions access latest \</text>
+        <text x="10" y="132" font-size="8.8" font-family="monospace" fill="#EC7000">  --secret=gemini-api-key)</text>
+      </g>
+
+      <!-- Card Agent Platform Studio -->
+      <rect x="0" y="305" width="234" height="170" rx="8" fill="#141720" stroke="#252A38" stroke-width="1"/>
+      <text x="14" y="328" font-size="12" font-weight="700" fill="#FFFFFF">Agent Platform &amp; BigQuery Studio</text>
+      <text x="14" y="348" font-size="11" fill="#8F98AE">Console e ferramentas web ativas:</text>
+      <text x="14" y="370" font-size="10.5" fill="#CFD4E2">• BigQuery Studio (Consultas SQL)</text>
+      <text x="14" y="390" font-size="10.5" fill="#CFD4E2">• Agent Platform Studio (Prompts IA)</text>
+      <text x="14" y="410" font-size="10.5" fill="#CFD4E2">• Análise de dados transacionais</text>
+      <text x="14" y="432" font-size="10.5" font-weight="700" fill="#52E078">✓ Base carregada: 467.585 transações</text>
+      <text x="14" y="456" font-size="11" font-weight="800" fill="#4285F4">Região: us-central1 ↗</text>
+    </g>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- CARD 3: ANTIGRAVITY ECOSYSTEM (CLI, 2.0 & IDE)                   -->
+  <!-- ================================================================= -->
+  <g id="card-step-3" transform="translate(645, 175)">
+    <rect width="270" height="580" rx="16" fill="url(#cardDarkGrad)" stroke="#272C3D" stroke-width="1.5"/>
+    
+    <rect x="0" y="0" width="270" height="60" rx="16" fill="rgba(255,255,255,0.02)"/>
+    <circle cx="36" cy="30" r="16" fill="rgba(236,112,0,0.15)"/>
+    <text x="36" y="36" font-size="15" font-weight="800" fill="#EC7000" text-anchor="middle">3</text>
+    <text x="64" y="29" font-size="15" font-weight="800" fill="#FFFFFF">ANTIGRAVITY DEV</text>
+    <text x="64" y="45" font-size="11" font-weight="600" fill="#7E879B">CLI • 2.0 Desktop • IDE</text>
+
+    <g transform="translate(18, 76)">
+      <text x="0" y="16" font-size="12" font-weight="700" fill="#E2E5EE">Opções de Desenvolvimento:</text>
+
+      <rect x="0" y="30" width="234" height="85" rx="8" fill="#141720" stroke="#252A38" stroke-width="1"/>
+      <text x="12" y="50" font-size="11" font-weight="800" fill="#FF8A00">1. Antigravity CLI (Terminal)</text>
+      <text x="12" y="68" font-size="10" font-family="monospace" fill="#CFD4E2">agy prompt "..." \</text>
+      <text x="12" y="84" font-size="10" font-family="monospace" fill="#52E078">  --model=gemini-3.8-flash</text>
+      <text x="12" y="102" font-size="9" fill="#8F98AE">Execução direta headless no Shell</text>
+
+      <!-- Config .gemini/config.json -->
+      <g transform="translate(0, 130)">
+        <rect class="code-box" width="234" height="155" rx="8"/>
+        <text x="12" y="24" font-size="10" font-family="monospace" fill="#FF8A00">.gemini/config.json:</text>
+        <text x="12" y="44" font-size="9.5" font-family="monospace" fill="#E1E4EA">{</text>
+        <text x="22" y="60" font-size="9.5" font-family="monospace" fill="#758099">"provider": "agent-platform",</text>
+        <text x="22" y="76" font-size="9.5" font-family="monospace" fill="#E1E4EA">"project_id": "$TEAM_PROJ",</text>
+        <text x="22" y="92" font-size="9.5" font-family="monospace" fill="#758099">"location": "us-central1",</text>
+        <text x="22" y="108" font-size="9.5" font-family="monospace" fill="#52E078">"model": "gemini-3.8-flash"</text>
+        <text x="12" y="126" font-size="9.5" font-family="monospace" fill="#E1E4EA">}</text>
+        <text x="12" y="145" font-size="9" fill="#7E879B">Reconhecido no 2.0 e VS Code</text>
+      </g>
+
+      <rect x="0" y="305" width="234" height="170" rx="8" fill="#141720" stroke="#252A38" stroke-width="1"/>
+      <text x="14" y="328" font-size="12" font-weight="700" fill="#FFFFFF">2. Antigravity 2.0 Client</text>
+      <text x="14" y="348" font-size="11" fill="#8F98AE">Orquestração multi-agente e canvas visual</text>
+      
+      <text x="14" y="380" font-size="12" font-weight="700" fill="#FFFFFF">3. VS Code &amp; Editor</text>
+      <text x="14" y="400" font-size="11" fill="#8F98AE">Extensão oficial Google Antigravity</text>
+      <text x="14" y="420" font-size="11" fill="#8F98AE">com login Google, BQ e ADC local.</text>
+
+      <rect x="14" y="438" width="206" height="24" rx="4" fill="rgba(82,224,120,0.1)"/>
+      <text x="117" y="454" font-size="10" font-weight="800" fill="#52E078" text-anchor="middle">✓ ZERO CHAVES EXPOSTAS</text>
+    </g>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- CARD 4: PIPELINE DE DEPLOY & CLOUD RUN                           -->
+  <!-- ================================================================= -->
+  <g id="card-step-4" transform="translate(945, 175)">
+    <rect width="250" height="580" rx="16" fill="url(#cardDarkGrad)" stroke="#272C3D" stroke-width="1.5"/>
+    
+    <rect x="0" y="0" width="250" height="60" rx="16" fill="rgba(255,255,255,0.02)"/>
+    <circle cx="36" cy="30" r="16" fill="rgba(236,112,0,0.15)"/>
+    <text x="36" y="36" font-size="15" font-weight="800" fill="#EC7000" text-anchor="middle">4</text>
+    <text x="64" y="29" font-size="15" font-weight="800" fill="#FFFFFF">DEPLOY AGENTE</text>
+    <text x="64" y="45" font-size="11" font-weight="600" fill="#7E879B">Cloud Build &amp; Cloud Run</text>
+
+    <g transform="translate(18, 76)">
+      <rect x="0" y="0" width="214" height="34" rx="6" fill="#141720" stroke="#252A38" stroke-width="1"/>
+      <text x="12" y="21" font-size="11" font-weight="700" fill="#4285F4">1. Artifact Registry</text>
+      <text x="135" y="21" font-size="10" fill="#8F98AE">repo: agentes</text>
+
+      <rect x="0" y="44" width="214" height="34" rx="6" fill="#141720" stroke="#252A38" stroke-width="1"/>
+      <text x="12" y="65" font-size="11" font-weight="700" fill="#FF8A00">2. Cloud Build</text>
+      <text x="125" y="65" font-size="10" fill="#8F98AE">builds submit</text>
+
+      <rect x="0" y="88" width="214" height="34" rx="6" fill="#141720" stroke="#52E078" stroke-width="1.2"/>
+      <text x="12" y="109" font-size="11" font-weight="800" fill="#52E078">3. Cloud Run Service</text>
+      <text x="145" y="109" font-size="10" fill="#52E078">HTTPS Pub</text>
+
+      <!-- Code Box -->
+      <g transform="translate(0, 130)">
+        <rect class="code-box" width="214" height="155" rx="8"/>
+        <text x="10" y="24" font-size="9.5" font-family="monospace" fill="#758099"># Deploy do Agente:</text>
+        <text x="10" y="44" font-size="9.5" font-family="monospace" fill="#E1E4EA">gcloud run deploy agente \</text>
+        <text x="10" y="60" font-size="9.5" font-family="monospace" fill="#E1E4EA">  --image=$IMAGE_TAG \</text>
+        <text x="10" y="76" font-size="9.5" font-family="monospace" fill="#EC7000">  --region=us-central1 \</text>
+        <text x="10" y="92" font-size="9.5" font-family="monospace" fill="#52E078">  --allow-unauthenticated \</text>
+        <text x="10" y="108" font-size="9.5" font-family="monospace" fill="#FF8A00">  --max-instances=5</text>
+        <text x="10" y="136" font-size="9.5" font-family="monospace" fill="#758099"># Invocador liberado</text>
+      </g>
+
+      <!-- Box Produção -->
+      <rect x="0" y="305" width="214" height="170" rx="8" fill="rgba(236,112,0,0.06)" stroke="rgba(236,112,0,0.3)" stroke-width="1"/>
+      <text x="12" y="330" font-size="11" font-weight="800" fill="#FF8A00">Pronto para Apresentação!</text>
+      <text x="12" y="352" font-size="10.5" fill="#CFD4E2">• Endpoint seguro com HTTPS</text>
+      <text x="12" y="372" font-size="10.5" fill="#CFD4E2">• Sem risco de estourar cotas</text>
+      <text x="12" y="392" font-size="10.5" fill="#CFD4E2">• Conectado aos jurados</text>
+
+      <rect x="12" y="420" width="190" height="34" rx="6" fill="#EC7000"/>
+      <text x="107" y="442" font-size="11" font-weight="900" fill="#FFFFFF" text-anchor="middle">AGENTE EM PRODUÇÃO</text>
+    </g>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- BARRA DE STATUS INFERIOR                                          -->
+  <!-- ================================================================= -->
+  <g id="footer-status" transform="translate(45, 780)">
+    <rect width="1150" height="52" rx="10" fill="#141721" stroke="#252B3A" stroke-width="1"/>
+    
+    <circle cx="28" cy="26" r="6" fill="#52E078"/>
+    <text x="44" y="30" font-size="12" font-weight="700" fill="#FFFFFF">Status do Ecossistema <tspan fill="#EC7000">Itaú</tspan>:</text>
+    <text x="215" y="30" font-size="12" fill="#8F98AE">14 Projetos provisionados • BigQuery Ativo (467.585 transações) • Gemini 3.8 Flash • Cotas isoladas • 70 participantes vinculados.</text>
+
+    <!-- Tag Oficial Itaú -->
+    <rect x="990" y="12" width="146" height="28" rx="6" fill="rgba(236,112,0,0.15)" stroke="#EC7000" stroke-width="1"/>
+    <text x="1063" y="30" font-size="11" font-weight="800" fill="#FFFFFF" text-anchor="middle">#BatalhaDeAgentes<tspan fill="#EC7000">Itaú</tspan></text>
+  </g>
+</svg>

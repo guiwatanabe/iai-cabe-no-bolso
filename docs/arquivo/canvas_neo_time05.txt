@@ -1,0 +1,45 @@
+FICHA DE SUBMISSÃO — PARTE 1 DO PROJETO
+
+Nome do Agente: NEO
+Equipe: Time 05
+
+O PROBLEMA
+
+Financiar a fatura para fechar o mês compromete a renda seguinte com encargos e dificulta sair do aperto.
+
+Base sintética: 689 perfis com parcial/mínimo; 327 com saldo negativo.
+
+MOMENTO DO USUÁRIO
+
+Cliente PF com orçamento pressionado e histórico de parcial/mínimo, diante da próxima fatura.
+
+Antes do vencimento, precisa decidir como pagar preservando o essencial.
+
+PROPOSTA DO AGENTE
+
+Recuperar margem com um plano viável para a próxima fatura, preservando o essencial.
+
+1. Dimensiona quanto falta.
+2. Compara saídas e consequências.
+3. Acompanha a ação escolhida.
+
+DADOS E TECNOLOGIA
+
+Extrato → confirmar contexto → calcular cenários → orientar escolha → acompanhar plano.
+
+ADK/Gemini + BigQuery + Cloud Run.
+Confirmar fatura, vencimento e condições.
+
+COMO MEDIREMOS VALOR
+
+Valor a financiar e custo projetado; ações concluídas; compreensão; recorrência do parcial/mínimo.
+
+Demo compara cenários. Piloto mede resultados observados.
+
+ESCOPO DA DEMO
+
+Uma pessoa, uma fatura: confirma contexto → compara duas saídas → escolhe ação → acompanha plano.
+
+Dados e condições simulados, identificados. Sem contratação ou pagamento real.
+
+Corporativo | Interno

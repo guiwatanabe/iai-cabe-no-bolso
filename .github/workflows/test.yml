@@ -20,3 +20,20 @@ jobs:
       - run: uv run --frozen ruff check
       - run: uv run --frozen ruff format --check
       - run: uv run --frozen pytest -q
+
+  # agente, API e demo (vindos de cabe-no-bolso-hml): projeto uv próprio em agent/, sem credenciais do GCP
+  agent:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          working-directory: agent
+      - run: uv sync --frozen
+      - run: uv run --frozen pytest -q
+        env:
+          DADOS: csv

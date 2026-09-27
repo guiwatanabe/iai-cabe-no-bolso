@@ -1,0 +1,320 @@
+Título: Persona definition and pain points
+Início registrado: 2026-09-26T15:35:27.604Z
+Fonte: https://notes.granola.ai/d/63e11fe2-37ac-43e0-8b0c-6ff9b111df5d
+Obtida em 26/09/2026 às 14h27 BRT. Transcrição disponível no Granola, sem timestamps por fala. Rótulos Speaker não foram associados a identidades. Erros de transcrição preservados.
+
+Speaker A: que a gente consiga...
+Speaker B: Não, tem que jogar com o html e ver se tem algum furo que a gente não pegou.
+Speaker C: Boa.
+Speaker D: Então, ó, eu tô... É que ainda tá analisando aqui, não terminou a análise dele.
+Speaker A: Eu sei.
+Speaker B: Do quê?
+Speaker A: Essa limpeza.
+Speaker B: Não é? Ah, isso aí é muito melhor, né?
+Speaker D: Mesa bagunçada, mente bagunçada.
+Speaker A: Deixa eu jogar aqui.
+Speaker D: Já tá estruturado.
+Speaker C: Você baixou a balena pra...
+Speaker D: Eu baixei.
+Speaker E: Gente,
+Speaker B: esse casaco aqui de quem?
+Speaker D: Tava aí já.
+Speaker B: Tu tá brincando?
+Speaker D: É do monitor.
+Speaker A: O monitor que acobriu.
+Speaker B: Gente, e com certeza... Ah, deixei, tá.
+Speaker A: Então, Ana, fechamos que a nossa dor vai ser essa?
+Speaker B: Fechamos que a dor, a nossa persona é o cara que gasta muito, não se preocupa com amanhã, parcela, vai ali e coloca tudo no cartão, a gente vai entender que ele tá botando no cartão, e ele não tem pra pagar a fatura no mês seguinte.
+Speaker A: Tá, então, eu vou definir, então, a persona.
+Speaker B: Pode definir a pessoa. Mas a gente tem sexo da pessoa? Tem idade?
+Speaker E: Não.
+Speaker B: A gente não tem nenhum dado dela, né?
+Speaker E: Não sei nem se é uma pessoa, é um ID, é um hash.
+Speaker A: É feitiço, é base sintética.
+Speaker E: Qual que é o ponto? A gente tem algumas coisas pra preencher. A gente tem qual que é a dor concreta que já temos e por que ela importa.
+Speaker A: Peraí, então. Já tinha esse ponto tudo aí. Então, a nossa dor será quanto mais apertado Eu fico...
+Speaker B: Não, isso não é doido. Isso é doido?
+Speaker D: É doido, é doido.
+Speaker E: É, quanto mais apertado eu fico, mais caro do aperto.
+Speaker A: fica sair Eu vou pedir pra ele comprovar. Ou se precisa ajudar. Quanto mais apertado eu fico, mais caro eu...
+Speaker B: Aperto, isso aí é aperto. Aperto.
+Speaker A: É, eu tinha entendido aperto. Aperto. Só que aí eu li de novo pra ele. Não, não é não. Então tá. Quanto mais apertado eu fico mais caro fica para sair do aperto. Pode ser uma... é uma... é uma dor. Ou podemos melhorar a sugestão.
+Speaker E: Valeu.
+Speaker A: Aí você leu alguma coisa aí agora que eu... é a próxima pergunta.
+Speaker E: É a mesma pergunta, na verdade. Por que essa dor importa?
+Speaker A: Me ajude a responder por que essa dor importa.
+Speaker E: Mas acho que precisa de contexto, né?
+Speaker A: Sim.
+Speaker E: De dados.
+Speaker A: Não, não. Já... Já colocou o HTML.
+Speaker E: Ah, tá com o HTML aí? Botado?
+Speaker A: Ah, não joguei o HTML, mas eu peguei o...
+Speaker E: Não, mas é o contexto de dados mesmo. Acho que é a base. Porque daí eles vão... Aí tem que evidenciar isso. Mas tá tranquilo.
+Speaker A: Tá, peraí. Deixa eu pegar aqui. Como é que eu subo o HTML, hein?
+Speaker D: Ele tem uma categoria de gasto, né?
+Speaker E: Tem.
+Speaker D: Você viu qual é a categoria que eles estão mais gastando?
+Speaker E: É em financiamentos empréstimos.
+Speaker B: É 26,9%. Produtos financeiros são 18,7% que são juros.
+Speaker E: E aí o ponto é, o meu ponto do produto financeiro é, não é o financiamento que está enrolando ele, porque ele não vai financiar se ele estiver apertado, ele não deveria. Mas ele, por estar financiando, ele se aperta.
+Speaker D: É porque ele consumiu um par da renda dele, né?
+Speaker E: Exato. Por que ele tá consumindo produto financeiro? Qual a lógica? Ele consome mais produto financeiro do que casa, educação, lazer.
+Speaker B: É crônico. É um devedor crônico.
+Speaker E: Então assim, é o top 2. O top 1 não necessariamente é o caso, né? É o causador da dor, né?
+Speaker B: Esse é o...
+Speaker A: Desculpa, gente.
+Speaker F: Perdão.
+Speaker A: Não, foi de palavrão.
+Speaker B: Deixa
+Speaker A: eu ver o arquivo...
+Speaker B: E sei que a gente vai estar adiantando um pouquinho, mas se a pessoa, esse tipo de pessoa aqui, ela tem que pagar a fatura, ela necessariamente tem que ir no lugar e pagar a fatura porque não tem débito automático para o parcelamento, né? Então a gente sabe que essa galera está sendo ativa no pagamento da fatura. Porque quando tu faz débito automático da fatura, é só valor integral.
+Speaker E: Nossa, muito legal. Tipo, a gente botasse de bilhinho que não ia ir, por exemplo. E aí a gente pensava que não se entregava por isso uma feature por aí.
+Speaker B: Olha aí, ó. No fechamento da fatura de ontem, inclusive, né? Porque aqui, pensando já no gatilho do usuário. Falei que eu tava adiantando os steps, tá? Ponto é. Hoje, o pagamento da fatura, quando você seleciona o pagamento automático, ele só debita se tem saldo em conta. Tem alguns bancos, inclusive, que não permitem debitar nem de cheque especial. E só debita o total, não debita a parcial. Então, minha fatura é R$10 mil, eu tenho meu cheque especial R$10 mil. Pode ser que debite. Agora, se a tua fatura é R$15.000, tu só tem R$10.000 de saldo, seja ele cheque especial ou não. A fatura não vai ser paga nos R$5.000 que tu tem em saldo. Então essa galera, esses 24% da nossa base, eles estão efetivamente entrando no aplicativo e fazendo, optando pelo parcelamento menor que o total da fatura. Então tem um gatilho manual na jornada. A gente não precisa usar o balãozinho da Home.
+Speaker E: Nossa, pô, tem site isso daí.
+Speaker B: Eu não entendia.
+Speaker E: Mano, a gente vai conseguir... E aí a gente consegue evidenciar que hoje é sem fluxo? Tipo assim, pra faturas atrasadas a gente não tem um fluxo de pagamento embedado? Seria manual?
+Speaker B: É... Eu acho... Não sei se isso tá em legislação.
+Speaker E: Alguém com a fatura atrasada aí pra gente tentar?
+Speaker D: Falou o quê?
+Speaker E: A fatura atrasada.
+Speaker B: Porra, eu acho que a minha tá. Porque acho que venceu o dia... Ih, venceu ontem. Venceu ontem, eu acho.
+Speaker E: Vou fingir que eu não comemorei internamente.
+Speaker B: Não, acho que a do meu, do Itaú, tá pra 28.
+Speaker A: Ó, ele sugeriu pra mim formular a dor assim. É... Quanto menor o meu respiro financeiro, mais caro pode ser recuperar o equilíbrio.
+Speaker B: Ó...
+Speaker A: Mas eu achei meio não tão simples.
+Speaker D: Deixa eu ver, tem uma aqui também.
+Speaker B: Gente, sou só a Itaú. Eu vou mostrar para vocês as minhas coisas. Mas aqui eu não uso o Itaú como meu banco principal. Então, justificando porque eu não monitoro minhas contas, mas limite disponível, fatura aberta. A ideia é fazer o mais ativado. Mas eu vou validar como faço para a gente ativar o débito automático. E daí as premissas talvez já me digam. Entenda como funciona. Débito em conta. O valor total da fatura de deputado da sua conta na data do vencimento. Saldo insuficiente. Na falta de saldo, o débito correrá até três dias após o vencimento e o limite da conta pode ser usado. Em caro, os juros não serão cobrados no próximo mês. Então aqui é só o valor total e pode usar limite de cheque especial depois de três dias. Eu vou tirar um print.
+Speaker A: Aqui ele analisou o documento e falou que não é só essa parte que tá pegando, os 94,2. O ponto que mais chama atenção é que o aperto não parece ser um evento isolado. Tem sinal de pressão financeira recorrente, Que
+Speaker B: é o rubi que a gente falou.
+Speaker A: É, que entra ali no fluxo negativo, 32,7% chegam ao saldo negativo e 24% pagaram, né?
+Speaker B: Essas são as dadas derivadas da análise do lucro.
+Speaker A: Além dos 695... 695 dos mil clientes tiveram registro de juros, somando aproximadamente 541 mil reais.
+Speaker B: É, é que ele tá lendo... A pressão financeira é o quadro 2 ali do Lucas, tem esses mesmos dados, entrou-se nada novo.
+Speaker A: Então, não é que as pessoas estão gastando mais simplesmente do que deveriam, parte da renda já está comprometida, então ele reformularia a dor. Pra isso que eu falei, quanto menor o meu respiro financeiro, mais caro pode ser recuperar o equilíbrio.
+Speaker B: É que ele não tem respiro financeiro. Esse cara fecha recorrentemente no vermelho. E assim, quando a gente olha pagamento de fatura, é 18,2 milhões. Financiamento anbiliário, 23,9 milhões. A gente tá falando de mais de 5 milhões. Só que uma é um financiamento anbiliário que é algo enorme e de extrema responsabilidade, e outra é algo com custo recorrente, um gasto recorrente. Ai, tá na hora!
+Speaker D: Tudo certo, a gente tá definindo a dor só.
+Speaker E: A gente tá tentando classificar os pontos da distribuição.
+Speaker B: Se vocês querem ajuda pra pensar alguma
+Speaker F: coisa, pra lidar, algum raciocínio, alguma hipótese.
+Speaker E: Eu acho que vale a gente compartilhar.
+Speaker D: É porque a gente tá pensando aqui, né? Todo mundo tem acesso a mesma base. Então, digamos que as ideias vão ser muito parecidas. Então a gente tá tentando pensar se o que a gente pensou aqui tá muito genérico, ou se realmente é uma dor efetiva que faz sentido a gente atacar, né? Então, Lucas, se quiser poder falar... Olha,
+Speaker E: aqui a gente estruturou de dor, tá? Pensando dentro do contexto total. A gente analisou a base e a gente viu que 94% dos clientes... Vou até puxar o dado exato aqui... É 94,2% dos clientes e eles chegam pelo menos um mês com fluxo negativo de faturamento. Então, ele tem um comportamento que é toda a precisão Deixa eu refinar aqui. O comportamento que o cliente tem é ele gasta sem pensar. Então, ele gasta olhando para o outro lado do que ele tem em conta, mas não pensando nos planejamentos de gasto do futuro que ele tem.
+Speaker B: Ou a gente pode falar que ele olha para o limite do cartão de crédito dele.
+Speaker E: É, ele olha para o limite do cartão de crédito dele, mas não para o limite que ele está consumindo. Então, a gente tem um comportamento que é o cliente gasta sem olhar o que ele tem já de comprometimento.
+Speaker A: Nível futuro, né?
+Speaker E: Exato. E a gente tem 94,2% da nossa base negativando, todo mês. E aí esse comportamento...
+Speaker F: Mas ele não vai ter 4% de todo mês?
+Speaker E: Não, em algum registro negativo. Mas a gente consegue perceber que é um comportamento quase que padrão.
+Speaker A: Tem corrente.
+Speaker E: E aí esse comportamento ele gera um outro teor que é a fatura atrasa, então ele está se comprometendo, ele chega na hora de pagar a fatura, ele não tem dinheiro para pagar a fatura atrasou para algum momento e ele paga essa fatura de maneira mínima ou parcial. E aí pessoas que têm registro disso representam 24% da base. Então 24% da nossa base tem a oportunidade de pagar ali sem olhar para os custos e comprometimento financeiro de 24%. Desse 24%, a gente consegue ver que o fato dele atrasar a fatura, ele aumenta os custos em produtos financeiros. Então, a gente viu que do total de gastos ranqueados, 18,7% dos gastos são voltados para produtos financeiros Seria juros, empréstimos, financiamentos...
+Speaker B: Não, empréstimo, financiamentos e contracategoria.
+Speaker F: Então, juros.
+Speaker E: Juros no final das contas.
+Speaker F: E também a gente viu...
+Speaker A: Daqui a R$ 541 mil no total desses clientes.
+Speaker B: Esses 24% que fazem o pagamento abaixo do valor total da fatura.
+Speaker F: A do partir valor, 18% do orçamento deles fica comprometido com os juros.
+Speaker E: Em média.
+Speaker F: Em média pelos próximos...
+Speaker E: Na verdade, a gente ranqueou o total de gastos desse público e do total de gastos desse público que ele segmentou em tipo.
+Speaker F: Eles gastaram quase 20% com produto financeiro.
+Speaker E: Ele gasta mais com produto financeiro do que com lazer, em casa e com estudo, por exemplo.
+Speaker B: Vamos confirmar, porque tá com carinha de que quem fez a base foi o senhor.
+Speaker E: Não, mas não foi o que eu fiz não.
+Speaker B: Vamos validar.
+Speaker E: Assim, a gente não tá partindo, não pensa nessa visão como funil, tá? Então não é dos 94 que viram 24, dos 24 que são dos 18. Não, a gente tá perdendo o comportamento geral da base pra depois virar um funil.
+Speaker A: Isso aqui é importante. Aqui está falando que, sobre essa questão de pressão financeira, 695 dos mil usuários tem registro de juros pagos. Então já é um número.
+Speaker B: Seria interessante a gente fazer o recorte do que foi referente ao pagamento da fatura, né? Porque aqui pode ser de qualquer outro crédito que ele tenha.
+Speaker F: Uma sugestão. Vocês estão explorando os dados. Eu acho que isso é ótimo. Ele já tem alguns insumos para pensar na solução.
+Speaker A: A gente já mais ou menos...
+Speaker B: A gente já... Só falta fechaio.
+Speaker A: A dor.
+Speaker B: Até onde?
+Speaker F: Eu acho que no segundo momento vocês exploram mais o dado. O risco de ficar aqui para sempre, explorando alguns buracos de minhoca aqui e não sair com uma conclusão... de qual problema a gente deve atacar e usar um pouquinho de presenças que a gente tem, de qual ideia que a gente quer resolver, ver o estado do cliente no final do dia. Então acho que tem uma qualidade aqui de, mas será que isso não vai ferir a receita do banco? A gente não quer ganhar dinheiro com juros abusivos em cima do cliente, eu prefiro muito mais A gente contrate outro, de forma de empréstimo, com juros mais saudáveis, ele consiga pagar, consiga uma vida melhor.
+Speaker E: Beleza.
+Speaker D: Fechou.
+Speaker F: Beleza? Obrigada, gente. Se precisarem de algum ponto, me avisem, por favor.
+Speaker B: Tá bom.
+Speaker C: Galera, e se... um negócio, tipo, botar umas pregas aqui. Então, qual jornada que a gente vai pegar? Qual ou quais?
+Speaker B: Eu acho que a gente ainda tem que focar no pagamento abaixo do total, da fatura.
+Speaker C: Tá, então seria a fatura do cartão?
+Speaker B: Fatura do cartão. Só que daí a gente... É que esse negócio que o Enício falou agora no final é importante, né? Tipo, querendo ou não, a gente vai diminuir uma receita nossa.
+Speaker C: Sim. Tem que ser um produto tanto para conhecimento de cliente quanto para o público.
+Speaker B: Eu acho que a gente não precisa fazer isso agora. Eu acho que o Mané tá insistindo também que a gente precisa preencher o form. Mas a gente pode não fazer isso agora, mas seria interessante olhar pra quê que a gente tem dentro da fatura do cartão pra ver outras soluções que a gente pode ofertar pra ele. Por exemplo, ele tá com o aluguel dentro da fatura do cartão, ele tá com tal Debito automático dentro da fatura do cartão. Tem uma que a gente possa puxar pra conta pra ele talvez ficar usando o cheque especial e não o parcelamento do cartão?
+Speaker D: Então, ó, referente é... Fiz um deep dive aqui que a gente pode preencher aí pra vocês verem se faz sentido preencher assim ou não. O problema, financiar a fatura pra fechar o mês compromete a renda seguinte com cargos e dificulta a saída aperta. Base sintética, 689 perfis com parcial mínimo de 327 com saldo negativo. Momento do usuário. Cliente PF com orçamento pressionado e histórico de parcial mínimo diante da próxima fatura. Antes do vencimento, precisa decidir como pagar preservando o essencial. Proposta da agente. Recuperar margem com plano viável para a próxima fatura, preservando o essencial. Dimensiona o quanto falta, compara saídas e consequências e acompanha a ação escolhida. Dado tecnologia, extrato, confirma contexto, calcula cenário, orienta a escolha e acompanha o plano. Aí tem a base que a gente pode usar. Como medir valor, valor a financiar e custo projetado, ações concluídas, compreensão e recorrência do parcial mínimo. A demo compara cenários e o piloto mede resultados observados. e o escopo da demo. Uma pessoa, uma fatura, confirma contexto, compara as duas saídas, escolhe ação e acompanha esse plano. Ou seja, é um agente que ele vai fazer o comparativo de quais são as melhores ações que ele pode tomar para conseguir ter, digamos assim, menos gastos com juros, né? Que é esse caso que ele falou. Prefiro não ter um produto que vai salvar o meu cliente ali do que eu cobrar juros abusivos de alguma forma em cima disso. Então aí ele já tem meio que até isso preenchido. E aí ele criou outro.
+Speaker A: Como é que tá a dor?
+Speaker D: A dor?
+Speaker A: Ficou como?
+Speaker D: Então, é o problema, né? Então, o problema é financiar a fatura para fechar o mês, compromete a renda seguinte com encargos e dificulta sair do aperto. Essa é a dor.
+Speaker E: Ótimo.
+Speaker A: Tá. Só precisa servir pra mais isso daí.
+Speaker B: Mas depois a gente só precisa entender o que é essa fatura dele. O que tem dentro da fatura?
+Speaker D: Então, mas aí é aquilo que a gente aprofunda nos dados. Aí a gente mergulha.
+Speaker E: E a gente fica aberto pra caber
+Speaker D: qualquer tipo de coisa. Entendeu? Fica amplo aqui. Então, por exemplo, a gente decidiu que vai ser a jornada. Qual vai ser a jornada? A fatura. Então, ali a gente abre pra... pode abrir pra um monte de coisa.
+Speaker B: Vamos mandar, então, o form pra já... Já preenchi, já.
+Speaker E: Já preenchi?
+Speaker D: Tá preenchido.
+Speaker A: Não, mas é o form... Tá, peraí, então vamos só...
+Speaker D: Passa de novo. Eu vou mostrar aqui pra vocês, calma aí. Aí vocês...
+Speaker A: Não, faz a pergunta e ela lê a resposta pra vocês.
+Speaker D: É só mandar. Tem o formulário, né? Não é só o PPT, né?
+Speaker A: É o formulário. Que a gente tá aberto aqui.
+Speaker D: Esse canto aqui.
+Speaker E: Ah não, esse canto é só o desenho. Tem o Farms que tem que preencher coisas.
+Speaker C: Ah, tá tudo aqui. Vamos passar aqui já pra gente ter tempo de revisar. Então só ler e preencher.
+Speaker A: É, ler que a gente preenche aqui, vai. Vem pra cá. Bora.
+Speaker D: Cadê?
+Speaker E: Tá aqui.
+Speaker A: Equipe, então... Deixa eu olhar pra eles
+Speaker E: aqui, só pra eu escutir aqui.
+Speaker B: Não, mas acho que manda a foto pra ele, e daí a gente recolhe.
+Speaker A: A equipe...
+Speaker B: A gente pode mostrar em texto cada coisa.
+Speaker A: A gente ficou no time 5 mesmo?
+Speaker D: Não, o nosso time é o time 5.
+Speaker A: Não, ele falou que ia mudar.
+Speaker D: Ah, é verdade, ele autorizou.
+Speaker A: Foi no grupo 5. Ah, alguém confirmou. No grupo ele mandou?
+Speaker B: Não, mandou no...
+Speaker A: Ele falou que ia no... No Cloud, gente.
+Speaker B: É, no Cloud. É o próprio Cloud.
+Speaker E: Tá, vamos ver. Vai ser cabe no bolso. Todo mundo corrigiu?
+Speaker F: Cabe no bolso?
+Speaker E: Cabe no bolso?
+Speaker B: É. Olha que lindo! Legal.
+Speaker E: Gente, o produto cabe no bolso? 5 minutos.
+Speaker B: Cabe no bolso.
+Speaker E: Pode ser, né?
+Speaker C: Continua 5, não atualizou.
+Speaker E: Beleza, tinha 5. Qual a dor? Você manda no lugar ou eu vou mandar?
+Speaker D: Não, eu vou falar pra você. Financiar a fatura para fechar o mês compromete a renda seguinte com o
+Speaker E: Desfinanciar a fatura até parar e fechar o mês. Compromete a renda seguinte. Como encargo de dificulta, saio do aperto.
+Speaker D: Isso, peraí. Eu vou tentar mandar o testemunho. Quatro minutos.
+Speaker E: Sem pressão.
+Speaker B: Se eu pedir pra gerar o que é esse, não vai? Ou pega, tira o print, manda a gente focar no Maia e pede pra ela tirar dentro de mais um.
+Speaker E: Qual que é o momento do cliente?
+Speaker D: O momento do cliente. Cliente PF com o orçamento posicionado. O histórico de parcela, barra mínima, diante da fatura, diante da próxima fatura.
+Speaker E: Boa.
+Speaker A: Marcela tá escrito errado.
+Speaker E: Marcela...
+Speaker A: Próximo tem assento.
+Speaker E: Qual que é o propósito da gente?
+Speaker D: Vou te mandar aqui no... Ah, boa.
+Speaker E: Eita, manda outra coisa.
+Speaker B: O brancozinho da granada.
+Speaker E: Sem aperto, temos dois minutos. A gente coloca algum material de upload?
+Speaker A: Oi?
+Speaker B: O print.
+Speaker A: É obrigatório?
+Speaker C: É.
+Speaker B: Coloca o print da bodeguinha ali enchida.
+Speaker A: Esse que tá no Whatsapp, né?
+Speaker E: Sim.
+Speaker A: Baixa esse aí então já.
+Speaker E: Socorro, deu dois minutos.
+Speaker B: Não, o que? Não, é a fotinha do Mané, do... Maná. Do Maná. Foi Mané?
+Speaker C: Um minuto.
+Speaker D: Carma.
+Speaker A: Foi?
+Speaker B: Manda o print do PowerPoint. Só quando você ctrl-v.
+Speaker C: Como
+Speaker E: mediremos o valor do tempo? Ah, tem. Eu copiei errado.
+Speaker F: Socorro.
+Speaker B: Olá!
+Speaker E: Olá de novo. Beleza. É... Upload. Cadê a imagem?
+Speaker C: Não,
+Speaker A: ainda tá dois. Calma. Pode respirar.
+Speaker E: Tá bonito.
+Speaker B: E aí, tá no inferno?
+Speaker E: Não tá indo hoje.
+Speaker A: Calma, foi. Pera, não tem nada sem responder?
+Speaker E: Não, o capo do bolso... Bonitinho, bonitinho, bonitinho, bonitinho...
+Speaker A: Agora!
+Speaker B: Pessoal, não fiquem. Beleza, então, formulário enviado. Tá ótimo.
+Speaker D: Pois é, moço, agora a gente pensa em como construir, ver os dados... Já
+Speaker A: tem algumas ideias pro Pete. Ele falou que manteria sim, cabe no bolso. Ele trouxe algumas ideias. Cabe no bolso, cabe no saldo, cabe no bolso, apertou o bolso, dá respira ao bolso, protegendo o bolso. Cabe no bolso, ele falou que é o melhor.
+Speaker D: É isso.
+Speaker A: Cabe no bolso, achei.
+Speaker E: Cabe no bolso foi muito bom. Eu gostei muito.
+Speaker C: Quando você falou já... Estou com uns negócios aqui da... Estou com o da missão e o desafio lá. Só pra gente não esquecer também o caminho, né?
+Speaker A: Boa.
+Speaker C: A nossa jornada já está definida, que é o cartão de crédito, né? A gente prioriza com o texto quem tem uma decisão importante acontecendo. É o cara olhando a fatura dele
+Speaker E: e decidindo o que ele vai fazer.
+Speaker C: Evitar funcionalidades genéricas. Boa. sei lá, só um resumo do que ele gastou esse mês e todo mundo faz.
+Speaker D: Eu acho que a gente pode ir nessa linha, eu sou muito fã da linha de ruído e sinal. Ele vai fazer muita coisa, mas qual que é um sinal efetivo que ele vai precisar disso? Que é, pô, nessa hora aqui, a gente pode até olhar os dados pra ver se existe alguma coisa mais... Tem
+Speaker A: um negócio no... acho que não, ele virou no Bank e tem outros bancos também Por exemplo, ele olha para o saldo da sua conta e ele vê os próximos lançamentos que você tem. Eu não sei, não lembro. Eu tenho tal, mas eu não lembro como é que é isso. Eu acho que ele tem uma notificaçãozinha.
+Speaker B: Aqui, tem o meu cartão, aí eu posso parcelar. Então, aqui pensando que eu não estou ativada, né, do automático, eu posso parcelar e daí tem uma inteligência para me falar, tipo, é parcelar fatura. Pague a fatura atual em parcelas fixas ou parcelar todas as faturas, então junte o saldo do cartão de crédito e o de parcelamento. Aí tem a gente já decidir, mas não é com IA, é só um template. E aí, quando eu vou aqui no detalhamento do cartão, ele me dá... Aonde? Aqui na fatura. Ele me dá os meus gastos provisionados.
+Speaker A: Então, acho que isso encaixa com o que você ia falar agora. Talvez esses gastos profissionais... Onde é que a gente acha a informação de que no próximo mês ele pode se comprometer?
+Speaker B: Com um parcelamento. A gente olhando para o que ele está aí na fatura, a gente sabe o que tem parcelado. Ou a gente sabe o que é recorrente.
+Speaker D: Então, qual é o sinal disso aí? O sinal é que ele fez uma compra parcelada. Esse é um sinal. Aí, a partir disso, já poderia estartar um fluxo para analisar.
+Speaker B: Mas tem que pensar que o brasileiro adora passar lá, né?
+Speaker D: Mas por isso que a gente vai dar um bem-estar pra ele, né? Porque a gente vai meio que educar ele dentro desse agente, né? Ou de educar, não, né? Não é nem educar, é disciplinar, né? Até porque ele vai ter que escolher uma opção ali, né? Só que aí tem que pensar também, vai ser igual a baixo isso? Como que vai funcionar a gente...
+Speaker A: É sugestão, é sugestivo.
+Speaker B: A gente tem que lembrar do que a gente falou ali, ó. Que é ser sutil, que é a experiência que eles mostraram do... E aí é... É mais propositivo.
+Speaker D: Propositivo, é isso mesmo.
+Speaker B: Eles usaram a palavra propositiva, né? Do que indicativo. Então, beleza. A gente tá vendo... A gente sabe a fatura do cara, a gente sabe quando ele tem saldo hoje. A gente sabe se ele vai ter que parcelar.
+Speaker A: O qual? É o qual? Meio que... Sim, sim. Tipo, já olhando os gastos que ele vai...
+Speaker B: O Itaú manda um SMS quando fecha a fatura. Inclusive, a gente podia usar o gatilho do SMS para notificar alguma coisa, tipo... Tu tem saldo esse mês, ou tu não tem saldo esse mês, ou... E na linha, vocês...
+Speaker D: Ultimamente virou hype os avisos da Defesa Civil, né? Fazer uma tipo essa, entendeu? No pop-up.
+Speaker A: Você vai deixar a pessoa em choque.
+Speaker B: Hoje eles já mandam uma SMS no fechamento da fatura. Quando fechar a fatura a gente já sabe se a pessoa tem um comportamento de não pagar ou pagar. Inclusive a gente já sabe se ela tem outro parcelamento de fatura dentro da fatura dela. E se ela já é recorrente no parcelamento de faturas.
+Speaker A: No BV? Tem...
+Speaker C: É. Conselheiro financeiro, mais uma coisa.
+Speaker E: O que você está pensando?
+Speaker B: A gente pode casar isso com crédito. A gente pode ver, poxa, a gente viu que você está gastando muito com supermercado. Tem crédito desse para supermercado? A gente viu que você está gastando muito com... Ah, você teve um imprevisto mês passado e você gastou em oficina de carro. Ele pode identificar alguma coisa, algum gasto atípico na fatura e sugerir um crédito, talvez, da carteira de crédito que o Itaú tem.
+Speaker D: O que dá pra fazer depois do
+Speaker B: almoço... E daí a gente tem a nossa menina pra ajudar no crédito, entendeu?
+Speaker D: Sim. O que dá pra fazer depois do almoço é aquele esquema de... Vocês já fizeram o brainstorm, né? É clichê, mas o brain como funciona? A gente joga as ideias e vamos eliminando, até chegar numa e aí trabalhar em cima dela. Porque senão a gente vai jogar aqui e, por exemplo, tá gravando aqui, né? Depois a gente facilita, estrutura isso, coloca no papel, estamos nesses cinco caminhos aqui, qual vai ser mais especialista, digamos assim. Também somo muito disso de não ser amplo, cara, ser muito específico. Porque eu tenho certeza, cara, não é todo mundo que tem essa mentalidade, claro. Hoje aqui eles foram selecionados, né? Mas as pessoas hoje tendem muito a ser generalistas. Então a gente não pode ser nem generalista, mano. A gente tem que ser especialista.
+Speaker E: A gente tem várias skills, muita coisa.
+Speaker A: Ele pode até ter outras skills, mas não é o foco.
+Speaker D: Hoje a gente vai pegar um recorte muito específico, que é esse aqui. Vamos resolver isso aqui. Porque aí pode ser que alguém esteja atacando a mesma dor, só que aí ele abriu muito. E aí a gente não, é isso
+Speaker A: que a gente vai resolver dessa forma. No BV, eles têm uma análise lá, de risco, sei lá, que fechou a fatura da pessoa, eles rodam esse esquema, se ele vê ou tem previsão de que a pessoa vai atrasar a fatura, vai... Vai ter algum problema para pagar a fatura? Eles mandam uma mensagem falando... Sabia que é que se pode parcelar sua fatura? Mas é, não sei...
+Speaker B: É, mas outra coisa, agora quando a gente tá falando da origem, se a gente olhar para o gasto dentro da fatura do cartão, a gente souber que a pessoa tá gastando, essa solução que a gente tá fazendo não é só para quem parcela, mas é para todo mundo que parcela dentro do cartão, não do parcelar fatura.
+Speaker D: Sim.
+Speaker B: Então, de 24, a gente vai para 100% da base, para todo mundo parcelar no cartão. Mas sempre as pessoas estão parcelando no cartão, que a gente pode usar como resultado do dono, para a gente gastar.
+Speaker D: Agora são 2, 3, 4.
+Speaker B: Joga. Já está grudando ainda.
+Speaker C: O foco principal é a fatura no cartão. Como você conseguia se pegar, mais ou menos, os gastos dessa pessoa? e direcionar ela pra lojas parceiras do Itaú que ele teria um desconto, um cashback, alguma coisa assim?
+Speaker D: Nossa, muito boa! Muito boa!
+Speaker A: Anotou?
+Speaker C: Anotou?
+Speaker D: Olá!
+Speaker A: Olá!
+Speaker C: Tudo bem?
+Speaker E: E aí?
+Speaker A: Gostei!
+Speaker E: Mandamos o format?
+Speaker D: E mandamos!
+Speaker A: As... Meio dia e cinquenta e nove!
+Speaker B: É!
+Speaker E: Dois do prazo!
+Speaker C: Ótimo!
+Speaker D: Direita a fotinha do fotógrafo que tava aqui bem na hora!
+Speaker A: Ótimo, ótimo!
+Speaker F: Maravilha, acho que foi premiado!
+Speaker E: Gente, vamos sentar?
+Speaker D: Vamos? Vamos.
+Speaker A: Então, ó, só saindo, piso zero, voltando pro mesmo lugar onde a gente tava antes.
+Speaker E: Beleza. Mas a gente não tá com fome, não.
+Speaker D: Quem não?
+Speaker A: Então ele fica fazendo o trabalho.
+Speaker B: Já vai aproveitar.
+Speaker D: Tem agente de é pra isso.
+Speaker A: Quer concluir e deixar pra depois?
+Speaker C: Agora.
+Speaker D: Não, não, não, não. Fala agora, fala agora. Fala agora. Fala pra mim que você perde.
+Speaker A: Pera, um minuto. Só pra eu não perder a linha de ressuscito.
+Speaker C: Tem essa parte das lojas parceiras, que eu acho que é interessante.
+Speaker A: Fala, João.
+Speaker C: Essa parte das lojas parceiras tem coisa do Itaú Shop, tipo pontuação, milha, essas coisas que todo mundo gosta, né? Que entra um pouco nessa parte de cartão, mas também não necessariamente. A gente pode só direcionar ele, ah, se você gastar dinheiro com isso, por que você não pega cashback, tipo, troca por pontos, alguma coisa assim. Sei lá, tô só... e cartões. A gente pode acompanhar o... como que o cara usa o cartão de crédito e oferecer algum cartão que às vezes ele tenha mais benefício do que só gastar.
+Speaker A: Ou um cartão que seja mais adequado à necessidade dele.
+Speaker D: Gosto muito da qualificativa de produto da loja, porque eles estão com... a ideia tem que dar os dois mil reais lá enquanto usa a loja, exatamente porque eles querem... incentivar o... E aí, o que daria para fazer? Basado na categoria de dados que tem dentro da base, dá para a gente tentar entender qual é a nossa categoria de dados, de base. E aquilo que eles falaram também lá, de olhar para trás, olhar o passado para tentar estruturar o futuro. Então, a gente pode tentar Faz uma curva aqui pra tentar entender esse comportamento, fazer esse direcionamento da loja.
+Speaker B: E aqui serviria também pra conta corrente,
+Speaker F: não só pra cartão.
+Speaker D: Só que aquilo, né, a gente faz um recorte baseado em gasto, a gente vai ajudar ele e tal, né?
+Speaker B: Eu acho que então o shopping é gift card. Então, por exemplo, a gente pode direcionar até a Uber. Não tem como diminuir o gasto com Uber, mas dá pra gente indicar que o Itaú Shop tem um... Você ganha pontos, né? Tem um gift card lá que ele pode omitir e ajudar no custo dele
+Speaker D: de... Muito bom, muito bom mesmo. Vamos descer?
+Speaker C: Bora!
+
