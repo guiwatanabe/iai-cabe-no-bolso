@@ -5,14 +5,18 @@ A demo (demo/ na raiz do repo) é servida em /. Erros saem sempre como {erro, me
 
 Dois modos por sessão, decididos em código (server/conversa.py):
 - llm: cabe_no_bolso.runtime (agente ADK + Gemini) é dono da sessão; esta camada valida entrada, aplica limites,
-  passa o guardião de novo na borda e espelha o mínimo de estado para a reserva;
+  passa o guardião e as checagens em código de novo na borda e espelha o mínimo de estado para a reserva. Dentro do
+  modo llm há dois modos de conversa (MODO_CONVERSA): `tools` (agente com ferramentas) e `gi` (prompt da Gi: o
+  servidor mapeia a ação do cliente para modo/gatilho, resolve em código confirmar/falar_com_pessoa/nao_quero e
+  trata como opcionais os campos novos acao, oferta_id, numeros_citados, validador);
 - sem_llm: resposta determinística montada só com cabe_core (runtime ausente, MODO_CONVERSA=sem_llm ou falha do
   modelo no meio da sessão: a sessão degrada sem erro visível para a banca).
-/api/avancar-mes, /api/trace e /api/painel nunca chamam o modelo em nenhum dos modos.
+/api/avancar-mes, /api/trace e /api/painel nunca chamam o modelo em nenhum dos modos. /api/painel traz, por turno,
+as checagens em código, o veredito do validador, regenerações e mensagens seguras.
 
 Rodar (a partir de agent/): uv run uvicorn server.main:app --port 8080
-Variáveis: DADOS=csv|bigquery, MODELO, MODO_CONVERSA=auto|sem_llm, RAIZ, TAXAS, SESSAO_TTL_S, RATE_LIMIT_POR_MINUTO,
-MAX_CONCORRENCIA, MAX_CORPO_BYTES, GOOGLE_* (Vertex, só usadas pelo runtime do agente).
+Variáveis: DADOS=csv|bigquery, MODELO, MODELO_VALIDADOR, MODO_CONVERSA=gi|tools|auto|sem_llm, RAIZ, TAXAS, SESSAO_TTL_S,
+RATE_LIMIT_POR_MINUTO, MAX_CONCORRENCIA, MAX_CORPO_BYTES, GOOGLE_* (Vertex, só usadas pelo runtime do agente).
 """
 from __future__ import annotations
 
@@ -43,6 +47,7 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime
 logging.getLogger("httpx").setLevel(logging.WARNING)  # o cliente HTTP do runtime loga URLs; só avisos
 
 MODELO = os.environ.get("MODELO", "gemini-3.8-flash")
+MODELO_VALIDADOR = os.environ.get("MODELO_VALIDADOR") or MODELO
 ERRO_ENTRADA = "Não entendi o pedido. Tente de novo."
 ERRO_SESSAO = "Sua sessão expirou. Recarregue a página para começar de novo."
 UUID_RE = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
@@ -137,7 +142,12 @@ def criar_app(*, req_por_minuto: int | None = None, max_concorrencia: int | None
     @app.get("/api/saude")
     async def saude(request: Request):
         modo = conversa.modo_atual()
+        mc = conversa.modo_conversa_atual()
+        cfg = (request.app.state.taxas.get("validador") if isinstance(request.app.state.taxas.get("validador"), dict) else {}) or {}
+        ativo = str(os.environ.get("VALIDADOR_ATIVO", cfg.get("ativo", True))).lower() not in ("0", "false", "nao", "não")
         return {"ok": True, "dados": request.app.state.fonte.nome, "modelo": MODELO if modo == "llm" else None, "modo": modo,
+                "modo_conversa": mc, "rotulo_modelo": conversa.rotulo_modelo(modo, MODELO),
+                "validador": {"ativo": ativo and modo == "llm", "modelo": MODELO_VALIDADOR if modo == "llm" else None, "frase": conversa.FRASE_VALIDADOR},
                 "sessoes": len(request.app.state.sessoes), "versao": app.version}
 
     @app.get("/api/personas")
@@ -157,7 +167,7 @@ def criar_app(*, req_por_minuto: int | None = None, max_concorrencia: int | None
         p = policy.persona_demo(entrada.cliente_id, st.taxas)
         rot = (st.taxas.get("grupos") or {}).get("rotulos") or {}
         estado = novo_estado(entrada.cliente_id, entrada.anomes, entrada.persona, (p or {}).get("apelido") or "cliente",
-                             (p or {}).get("perfil") or "", conversa.modo_atual())
+                             (p or {}).get("perfil") or "", conversa.modo_atual(), conversa.modo_conversa_atual())
         estado["grupo_rotulo_config"] = rot.get((p or {}).get("grupo_esperado")) if p else None
         estado["contar_pix"] = entrada.contar_pix
         sid = st.sessoes.criar(estado)
@@ -170,8 +180,10 @@ def criar_app(*, req_por_minuto: int | None = None, max_concorrencia: int | None
             st.sessoes.remover(sid)
             raise
         resposta["modo"] = estado["modo"]
+        resposta["modo_conversa"] = estado.get("modo_conversa")
         resposta["numeros_validados"] = [dict(n) for n in estado["numeros_validados"]]
-        log.info("sessao criada sessao=%s cliente=%s… anomes=%s modo=%s", sid[:6], entrada.cliente_id[:8], entrada.anomes, estado["modo"])
+        log.info("sessao criada sessao=%s cliente=%s… anomes=%s modo=%s conversa=%s", sid[:6], entrada.cliente_id[:8], entrada.anomes,
+                 estado["modo"], estado.get("modo_conversa"))
         return resposta
 
     @app.post("/api/consentimento")
@@ -184,11 +196,16 @@ def criar_app(*, req_por_minuto: int | None = None, max_concorrencia: int | None
             r = None
             mod = runtime_de(estado)
             if mod is not None:
-                r = await conversa.rt_consentir(estado, mod, entrada.concedido)
+                r = await conversa.rt_consentir(estado, mod, entrada.concedido, st.fonte, st.taxas)
             if r is None:
                 r = await run_in_threadpool(conversa.registrar_consentimento, estado, st.fonte, st.taxas, entrada.concedido, agora_iso())
                 r["modo"] = estado["modo"]
-        log.info("consentimento sessao=%s concedido=%s modo=%s", entrada.sessao_id[:6], entrada.concedido, estado["modo"])
+                r["modo_conversa"] = estado.get("modo_conversa")
+            if not entrada.concedido:
+                estado["insight"] = conversa.insight_seguro(estado)
+                r.setdefault("insight_seguro", dict(estado["insight"]))
+        log.info("consentimento sessao=%s concedido=%s modo=%s insight=%s", entrada.sessao_id[:6], entrada.concedido, estado["modo"],
+                 ((r.get("insight") or {}).get("gerado_por") if isinstance(r.get("insight"), dict) else None))
         return r
 
     @app.post("/api/mensagem")
@@ -202,17 +219,24 @@ def criar_app(*, req_por_minuto: int | None = None, max_concorrencia: int | None
         if estado is None:
             return erro(404, "sessao_nao_encontrada", ERRO_SESSAO)
         texto = (entrada.texto or "").strip() or None
+        acao = conversa.normalizar_acao(entrada.acao)
         t0 = time.perf_counter()
         async with st.sessoes.lock(entrada.sessao_id):
             r = None
             mod = runtime_de(estado)
-            if mod is not None and estado.get("consentimento") is True:  # sem consentimento nem o agente entra: nenhum dado lido
-                r = await conversa.rt_mensagem(estado, mod, acao=entrada.acao, texto=texto, valor=entrada.valor)
+            deterministica = conversa.deterministica_no_modo_gi(estado, acao)
+            if mod is not None and estado.get("consentimento") is True and not deterministica:  # sem consentimento nem o agente entra: nenhum dado lido
+                r = await conversa.rt_mensagem(estado, mod, acao=acao, texto=texto, valor=entrada.valor, fonte=st.fonte, taxas=st.taxas)
             if r is None:
-                r = await conversa.conversar(estado, st.fonte, st.taxas, acao=entrada.acao, texto=texto, valor=entrada.valor)
+                r = await conversa.conversar(estado, st.fonte, st.taxas, acao=acao, texto=texto, valor=entrada.valor)
+                r["modo_conversa"] = estado.get("modo_conversa")
+                if mod is not None and estado.get("modo") == "llm":
+                    await conversa.rt_pos_deterministica(estado, mod, acao)   # espelha no state do agente o que foi decidido em código
         g = r.get("guardiao") or {}
-        log.info("mensagem sessao=%s acao=%s modo=%s cards=%d removidos=%d termos=%d ms=%.0f", entrada.sessao_id[:6], entrada.acao or "texto",
-                 r.get("modo"), len(r.get("cards") or []), len(g.get("removidos") or []), len(g.get("termos_bloqueados") or []),
+        v = r.get("validador") if isinstance(r.get("validador"), dict) else {}
+        log.info("mensagem sessao=%s acao=%s modo=%s conversa=%s gatilho=%s acao_agente=%s validador=%s cards=%d removidos=%d termos=%d ms=%.0f",
+                 entrada.sessao_id[:6], acao or "texto", r.get("modo"), r.get("modo_conversa"), r.get("gatilho"), r.get("acao"),
+                 v.get("aprovado"), len(r.get("cards") or []), len(g.get("removidos") or []), len(g.get("termos_bloqueados") or []),
                  (time.perf_counter() - t0) * 1000)
         return r
 
@@ -227,10 +251,13 @@ def criar_app(*, req_por_minuto: int | None = None, max_concorrencia: int | None
                 return erro(403, "sem_consentimento", conversa.TEXTO_SEM_CONSENTIMENTO)
             r = None
             mod = runtime_de(estado)
-            if mod is not None:
+            if mod is not None and not (estado.get("plano") and estado.get("modo_conversa") == "gi"):
+                # no modo gi o plano nasce em código no servidor: o acompanhamento roda aqui (cabe_core.acompanhar), sem o runtime
                 r = await conversa.rt_avancar(estado, mod)
-                if r is not None and r.get("erro") == "sem_plano":
+                if r is not None and r.get("erro") == "sem_plano" and not estado.get("plano"):
                     return erro(409, "sem_plano", "Confirme uma opção no ia.i antes de avançar o mês.")
+                if r is not None and r.get("erro") == "sem_plano":
+                    r = None
                 if r is not None and r.get("erro") == "plano_encerrado":
                     return erro(409, "plano_encerrado", "O plano já encerrou: três faturas inteiras seguidas.")
             if r is None:
@@ -254,7 +281,7 @@ def criar_app(*, req_por_minuto: int | None = None, max_concorrencia: int | None
         if mod is not None:
             r = await conversa.rt_trace(estado, mod)
             if r is not None:
-                return r
+                return conversa.juntar_traces(r, estado["trace"])
         return [dict(t) for t in estado["trace"]]
 
     @app.get("/api/painel/{sessao_id}")
@@ -266,9 +293,14 @@ def criar_app(*, req_por_minuto: int | None = None, max_concorrencia: int | None
         async with st.sessoes.lock(sessao_id):
             mod = runtime_de(estado)
             if mod is not None:
-                r = await conversa.rt_painel(estado, mod, st.taxas, MODELO)
-                if r is not None:
-                    return r
+                if estado.get("plano") and estado.get("modo_conversa") == "gi":
+                    # plano e acompanhamento nasceram em código no servidor: painel local, com o FinOps espelhado do agente
+                    await conversa._sincronizar(estado, mod, com_trace=False)
+                    estado.pop("_finops_delta", None)
+                else:
+                    r = await conversa.rt_painel(estado, mod, st.taxas, MODELO)
+                    if r is not None:
+                        return r
             return await run_in_threadpool(conversa.painel_juri, estado, st.fonte, st.taxas, MODELO)
 
     # ------------------------------------------------------------------ demo estática em / (depois das rotas da API)

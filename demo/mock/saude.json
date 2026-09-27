@@ -2,5 +2,13 @@
  "ok": true,
  "dados": "mock",
  "modelo": null,
+ "modo": "mock",
+ "modo_conversa": "gravado",
+ "rotulo_modelo": "nenhum (mock)",
+ "validador": {
+  "ativo": false,
+  "modelo": null,
+  "frase": "Nenhuma mensagem chega ao cliente sem passar pelo validador"
+ },
  "nota": "respostas gravadas por analise/gera_mock_demo.py"
 }

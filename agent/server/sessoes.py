@@ -7,7 +7,10 @@ Estado da sessão (chaves estáveis para server, conversa e cabe_no_bolso.runtim
   sessao_id, cliente_id, anomes, persona, apelido, perfil_texto, consentimento (bool|None), registro_consentimento,
   mes_simulado, contar_pix (bool|None), motor, ofertas, plano, ciclos, escolha ({acao, valor}), oferta_recusada,
   encerrado (bool), historico_contratacoes, numeros_validados [{valor, origem}], trace [...], finops {...},
-  modo ('sem_llm'|'llm'), criado_em, ultimo_acesso.
+  modo ('sem_llm'|'llm'), modo_conversa ('gi'|'tools'|'sem_llm'), gatilho (último gatilho enviado ao agente),
+  insight (card do cartão), historico [{papel, texto}] (conversa vista pelo cliente), turnos [...] (um registro por
+  turno: checagens em código, veredito do validador, regenerações, mensagem segura, FinOps do turno),
+  criado_em, ultimo_acesso.
 """
 from __future__ import annotations
 
@@ -21,7 +24,8 @@ def agora_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def novo_estado(cliente_id: str, anomes: int, persona: str | None, apelido: str, perfil_texto: str, modo: str) -> dict:
+def novo_estado(cliente_id: str, anomes: int, persona: str | None, apelido: str, perfil_texto: str, modo: str,
+                modo_conversa: str | None = None) -> dict:
     return {
         "sessao_id": None,
         "cliente_id": cliente_id,
@@ -46,6 +50,11 @@ def novo_estado(cliente_id: str, anomes: int, persona: str | None, apelido: str,
         "trace": [],
         "finops": {"chamadas_llm": 0, "tokens_entrada": 0, "tokens_saida": 0, "latencias_ms": []},
         "modo": modo,
+        "modo_conversa": modo_conversa or ("sem_llm" if modo == "sem_llm" else "tools"),
+        "gatilho": None,
+        "insight": None,
+        "historico": [],
+        "turnos": [],
         "criado_em": agora_iso(),
         "ultimo_acesso": time.monotonic(),
     }
@@ -88,6 +97,23 @@ def registrar_trace(estado: dict, ferramenta: str, argumentos: dict | None, resu
     }
     estado["trace"].append(item)
     return item
+
+
+def registrar_turno(estado: dict, **campos) -> dict:
+    """Um registro por turno para o painel da banca: quem pediu, gatilho e modo enviados ao agente, o que o código checou,
+    o que o validador decidiu, quantas regenerações houve e se saiu a mensagem segura. Sem texto do cliente (entrada é dado)."""
+    turno = {"ordem": len(estado.setdefault("turnos", [])) + 1, "ts": agora_iso(), **campos}
+    estado["turnos"].append(turno)
+    return turno
+
+
+def registrar_historico(estado: dict, papel: str, texto: str | None) -> None:
+    """Conversa como o cliente a viu (últimas 20 entradas), para o contexto do agente e para o painel."""
+    if not texto:
+        return
+    h = estado.setdefault("historico", [])
+    h.append({"papel": papel, "texto": str(texto)[:500]})
+    del h[:-20]
 
 
 def estado_publico(estado: dict) -> dict:

@@ -203,19 +203,36 @@ def test_ana_pagar_minimo_intercepta_e_cobertura(cliente):
     assert o["caminho"] == "cobertura_curta" and o["opcoes"][0]["produto"] == "cheque_especial"
     assert o["opcoes"][0]["dias"] == 7 and o["opcoes"][0]["custo_total"] == 798 and o["opcoes"][0]["taxa_status"] == "confirmada"
     assert j["guardiao"]["removidos"] == [] and "7 dias" in j["mensagens"][1]["texto"] and "R$ 7,98" in j["mensagens"][1]["texto"]
-    # pergunta certa: o PIX regular não conta como renda sem confirmação
-    assert {"contar_pix", "nao_contar_pix"} <= {s["acao"] for s in j["sugestoes"]}
-    assert "R$ 1.994,62" in j["mensagens"][-1]["texto"]
+    # pergunta certa: o PIX regular não conta como renda sem confirmação (botões "É renda" / "Não é renda")
+    chips = {s["acao"]: s["rotulo"] for s in j["sugestoes"]}
+    assert chips.get("confirmar_entrada_regular") == "É renda" and chips.get("nao_contar_pix") == "Não é renda"
+    assert "R$ 1.994,62" in j["mensagens"][-1]["texto"] and len(j["mensagens"]) <= 3
+    assert j["acao"] == "mostrar_oferta" and j["oferta_id"] == "cob_01" and j["turno"]["checagens"]["ok"] is True
 
 
-def test_ana_contar_pix_recalcula(cliente):
+@pytest.mark.parametrize("acao", ["confirmar_entrada_regular", "contar_pix"])   # contar_pix é o nome antigo (alias)
+def test_ana_confirmar_entrada_regular_recalcula(cliente, acao):
     sid = sessao(cliente, ANA, 202508)
     msg(cliente, sid, acao="ver_opcoes")
-    j = msg(cliente, sid, acao="contar_pix")
+    j = msg(cliente, sid, acao=acao)
     m, o = j["cards"][0]["dados"], j["cards"][1]["dados"]
     assert m["flags"]["contar_pix"] is True and m["folga"] == 232042 and m["falta"] == 63458
     assert o["opcoes"][0]["custo_total"] == 192 and o["teto_cartao_mes"] == 168392
     assert j["guardiao"]["removidos"] == [] and "R$ 634,58" in j["mensagens"][0]["texto"]
+    assert j["turno"]["acao"] == "confirmar_entrada_regular" and j["turno"]["gatilho"] == "fechamento"
+    # a pergunta não volta: o PIX já foi respondido
+    j = msg(cliente, sid, acao="ver_opcoes")
+    assert not any(s["acao"] == "confirmar_entrada_regular" for s in j["sugestoes"])
+
+
+def test_ana_nao_contar_pix_segue_sem_somar(cliente):
+    sid = sessao(cliente, ANA, 202508)
+    msg(cliente, sid, acao="ver_opcoes")
+    j = msg(cliente, sid, acao="nao_contar_pix")
+    assert "PIX" in j["mensagens"][0]["texto"] and j["cards"] == []
+    j = msg(cliente, sid, acao="ver_opcoes")
+    assert j["cards"][0]["dados"]["flags"]["contar_pix"] is False and j["cards"][0]["dados"]["falta"] == 262920
+    assert not any(s["acao"] == "confirmar_entrada_regular" for s in j["sugestoes"])
 
 
 def test_cenario_3_prefere_o_minimo_custo_uma_vez(cliente):
@@ -424,3 +441,246 @@ def test_ponte_cai_para_sem_llm_quando_o_modelo_falha(monkeypatch):
         assert any(t["ferramenta"] == "capacidade.motor" and t["resumo"] == "do runtime" for t in tr)  # estado sincronizado
         p = c.get(f"/api/painel/{sid}").json()
         assert p["modo"] == "sem_llm" and p["encerrado"] is True and p["finops"]["chamadas_llm"] == 2 and p["finops"]["latencia_p95_ms"] == 200
+
+
+# ----------------------------------------------------------------------------- modo gi (prompt da Gi): gatilhos, campos novos, checagens na borda
+class RuntimeGi(RuntimeFalso):
+    """Runtime no modo da Gi: recebe gatilho/modo, devolve o JSON do prompt (mensagens, acao, oferta_id, numeros_citados, validador).
+
+    Não expõe motor/ofertas em estado_bruto: o servidor recalcula em código (garantir_analise_local) para cards, ids e plano."""
+
+    def __init__(self, resposta=None, insight=None):
+        super().__init__()
+        self.kwargs: list[dict] = []
+        self.deltas: list[dict] = []
+        self.resposta = resposta
+        self.insight = insight
+
+    def modo_conversa(self):
+        return "gi"
+
+    async def consentir_async(self, sessao_id, concedido, **kw):
+        self.chamadas.append("consentir")
+        return {"consentimento": bool(concedido), "registro": {"data": "x", "versao_texto": "v-gi", "escopo": "90 dias"},
+                "insight": {"estado": "falta_pontual", "texto": "insight determinístico do runtime", "botao": {"rotulo": "Ver", "acao": "ver_opcoes"}},
+                "numeros_validados": []}
+
+    async def insight_gi_async(self, sessao_id, gatilho="fechamento", modelo=None, **kw):
+        """Mesma forma do runtime real: {insight: {...}, validador, checagens, nao_enviar, numeros_validados, finops}."""
+        self.chamadas.append(f"insight:{gatilho}:insight")
+        if self.insight is not None:
+            return self.insight   # forma plana ({texto, ...}) também é aceita pelo servidor
+        return {"insight": {"estado": "gi", "texto": "Ana, a fatura fechou em R$ 2.955,00. Até o dia 30, a previsão é ter R$ 325,80. Temos um jeito de pagar tudo.",
+                            "botao": {"rotulo": "Ver opções", "acao": "ver_opcoes"}, "botao_secundario": {"rotulo": "Agora não", "acao": "nenhuma"},
+                            "numeros_citados": ["R$ 2.955,00", "dia 30", "R$ 325,80"], "mensagem_segura": False},
+                "validador": {"ativo": True, "aprovado": True, "violacoes": [], "regeneracoes": 0, "mensagem_segura": False},
+                "checagens": {"ok": True, "falhas": [], "acao": None}, "nao_enviar": False, "numeros_validados": [],
+                "finops": {"chamadas_llm": 1, "chamadas_validador": 1, "tokens_entrada": 900, "tokens_saida": 60, "latencias_ms": [800], "latencias_validador_ms": [400], "duracao_turno_ms": 1250}}
+
+    async def conversar_async(self, sessao_id, cliente_id, anomes, texto_ou_acao, valor=None, gatilho=None, modo=None, **kw):
+        self.chamadas.append(f"conversar:{texto_ou_acao}")
+        self.kwargs.append({"gatilho": gatilho, "modo": modo, "valor": valor, "contar_pix": kw.get("contar_pix")})
+        if callable(self.resposta):
+            return self.resposta(texto_ou_acao, valor, gatilho)
+        base = {"cards": [], "sugestoes": [], "guardiao": {"removidos": [], "termos_bloqueados": []}, "numeros_validados": [],
+                "finops": {"chamadas_llm": 2, "tokens_entrada": 1500, "tokens_saida": 120, "latencias_ms": [1200, 700]},
+                "validador": {"aprovado": True, "violacoes": [], "chamadas": 1}}
+        if gatilho == "pagar_outro_valor":
+            return {**base, "mensagens": [{"papel": "agente", "texto": "Antes de confirmar: tem um jeito de pagar a fatura inteira com uma cobertura que cabe no seu mês."}],
+                    "acao": "nenhuma", "oferta_id": None, "numeros_citados": []}
+        return {**base, "mensagens": [
+            {"papel": "agente", "texto": "Oi, Ana. Sua fatura fechou em R$ 2.955,00 e vence dia 30. Até lá, a previsão é ter R$ 325,80 na conta, e seu próximo salário cai dia 7."},
+            {"papel": "agente", "texto": "Uma opção é pagar a fatura inteira no dia 30 usando o limite da conta por 7 dias, até o salário. O custo total fica em R$ 7,98."},
+            {"papel": "agente", "texto": "Antes, uma pergunta: vi um PIX de cerca de R$ 1.994,62 entrando todo mês. Ele é renda sua?"}],
+            "acao": "mostrar_oferta", "oferta_id": "cob_01", "numeros_citados": ["R$ 2.955,00", "dia 30", "R$ 325,80", "dia 7", "7 dias", "R$ 7,98", "R$ 1.994,62"]}
+
+    async def atualizar_estado_async(self, sessao_id, delta, **kw):
+        self.deltas.append(delta)
+
+    def estado_bruto(self, sessao_id, **kw):
+        return {"consentimento": True, "numeros_validados": []}
+
+
+def test_modo_gi_jornada_da_ana(monkeypatch):
+    from server import conversa
+
+    falso = RuntimeGi()
+    monkeypatch.setattr(conversa, "carregar_runtime", lambda: falso)
+    monkeypatch.setenv("INSIGHT_COM_LLM", "true")
+    with TestClient(criar_app(req_por_minuto=10_000)) as c:
+        s = c.get("/api/saude").json()
+        assert s["modo"] == "llm" and s["modo_conversa"] == "gi" and s["validador"]["ativo"] is True and "validador" in s["validador"]["frase"]
+        r = c.post("/api/sessao", json={"cliente_id": ANA, "anomes": 202508}).json()
+        sid = r["sessao_id"]
+        # sem consentimento: o insight do card é a mensagem segura (formas de pagar)
+        assert r["modo_conversa"] == "gi" and r["insight"]["estado"] == "sem_adesao" and "formas de pagar" in r["insight"]["texto"]
+        assert r["insight"]["botao"]["acao"] == "ver_formas_de_pagar" and "R$ 2.955,00" in r["insight"]["texto"]
+        # consentimento: insight pelo modelo em modo insight / gatilho fechamento, com veredito do validador
+        r = c.post("/api/consentimento", json={"sessao_id": sid, "concedido": True}).json()
+        assert "insight:fechamento:insight" in falso.chamadas
+        i = r["insight"]
+        assert i["gerado_por"] == "llm" and i["texto"].startswith("Ana, a fatura fechou em R$ 2.955,00") and i["botao"] == {"rotulo": "Ver opções", "acao": "ver_opcoes"}
+        assert i["botao_secundario"] == {"rotulo": "Agora não", "acao": "nenhuma"} and i["validador"]["aprovado"] is True
+        t = r["turno"]
+        assert t["modo"] == "insight" and t["gatilho"] == "fechamento" and t["llm"] is True and t["validador"]["aprovado"] is True
+        assert t["checagens"]["ok"] is True and t["checagens"]["tamanho"]["limite"] == 160 and t["chamadas_llm"] == 1 and t["chamadas_validador"] == 1
+        assert t["latencia_ms"] == 1250
+        # ver_opcoes -> conversa / fechamento; cards completados em código a partir da análise; pergunta do PIX com os dois botões
+        j = c.post("/api/mensagem", json={"sessao_id": sid, "acao": "ver_opcoes"}).json()
+        assert falso.chamadas[-1] == "conversar:ver_opcoes" and falso.kwargs[-1]["gatilho"] == "fechamento" and falso.kwargs[-1]["modo"] == "conversa"
+        assert j["modo"] == "llm" and j["modo_conversa"] == "gi" and j["gatilho"] == "fechamento"
+        assert j["acao"] == "mostrar_oferta" and j["oferta_id"] == "cob_01" and len(j["numeros_citados"]) == 7
+        assert [k["tipo"] for k in j["cards"]] == ["diagnostico", "comparador"] and j["cards"][1]["dados"]["opcoes"][0]["custo_total"] == 798
+        assert j["guardiao"]["removidos"] == [] and j["checagens"]["ok"] is True and j["checagens"]["numeros"]["sem_origem"] == []
+        assert [x["acao"] for x in j["sugestoes"][:2]] == ["confirmar_entrada_regular", "nao_contar_pix"]
+        assert j["validador"]["aprovado"] is True and j["turno"]["validador"]["aprovado"] is True and j["turno"]["chamadas_llm"] == 2
+        # É renda -> o servidor manda a ação ao runtime com contar_pix=True e recalcula em código
+        j = c.post("/api/mensagem", json={"sessao_id": sid, "acao": "confirmar_entrada_regular"}).json()
+        assert falso.chamadas[-1] == "conversar:confirmar_entrada_regular" and falso.kwargs[-1]["contar_pix"] is True
+        assert j["cards"][0]["dados"]["flags"]["contar_pix"] is True and j["cards"][1]["dados"]["opcoes"][0]["custo_total"] == 192
+        assert not any(x["acao"] == "confirmar_entrada_regular" for x in j["sugestoes"])
+        # pagar o mínimo -> gatilho pagar_outro_valor com valor = mínimo; a resposta vira o card "antes de confirmar"
+        j = c.post("/api/mensagem", json={"sessao_id": sid, "acao": "pagar_minimo"}).json()
+        assert falso.kwargs[-1] == {"gatilho": "pagar_outro_valor", "modo": "conversa", "valor": 44325, "contar_pix": None}
+        assert "Antes de confirmar" in j["mensagens"][0]["texto"] and j["acao"] == "nenhuma"
+        # confirmar -> em código, sem chamar o modelo; plano registrado e espelhado no runtime
+        n = len(falso.chamadas)
+        j = c.post("/api/mensagem", json={"sessao_id": sid, "acao": "confirmar"}).json()
+        assert len(falso.chamadas) == n and j["cards"][0]["tipo"] == "confirmacao" and j["cards"][0]["dados"]["plano"]["custo_total"] == 192
+        assert j["acao"] == "abrir_resumo_contrato" and j["oferta_id"] == "cob_01" and j["turno"]["llm"] is False
+        assert any("plano" in d for d in falso.deltas)
+        # acompanhamento em código (cabe_core.acompanhar), sem runtime
+        for _ in range(3):
+            assert c.post("/api/avancar-mes", json={"sessao_id": sid}).status_code == 200
+        assert len(falso.chamadas) == n
+        # painel: um registro por turno, checagens em código e veredito do validador
+        p = c.get(f"/api/painel/{sid}").json()
+        assert p["modo_conversa"] == "gi" and p["rotulo_modelo"] == "gemini-3.8-flash" or p["rotulo_modelo"]
+        assert [t["acao"] for t in p["turnos"]] == ["consentimento", "ver_opcoes", "confirmar_entrada_regular", "pagar_minimo", "confirmar"]
+        assert p["validador"]["aprovados"] == 4 and p["validador"]["reprovados"] == 0 and p["validador"]["turnos_com_llm"] == 4
+        assert p["validador"]["frase"] == "Nenhuma mensagem chega ao cliente sem passar pelo validador"
+        assert p["finops"]["chamadas_llm"] == 7 and p["finops"]["chamadas_validador"] == 1 and p["finops"]["latencia_p95_ms"] == 1200
+
+
+def test_modo_gi_acoes_deterministicas_e_mensagem_segura(monkeypatch):
+    from server import conversa
+
+    def resposta(entrada, valor, gatilho):
+        base = {"cards": [], "sugestoes": [], "guardiao": {"removidos": [], "termos_bloqueados": []}, "numeros_validados": [],
+                "finops": {"chamadas_llm": 1, "tokens_entrada": 100, "tokens_saida": 10, "latencias_ms": [300]}}
+        if entrada == "por_que_alta":   # termo interno proibido: mensagem segura na borda, registrada no turno
+            return {**base, "mensagens": [{"papel": "agente", "texto": "Você está na pedalada: rolou a fatura 4 vezes."}], "acao": "nenhuma",
+                    "oferta_id": None, "numeros_citados": ["4 vezes"], "validador": {"aprovado": False, "violacoes": [{"regra": "R4", "gravidade": "corrigivel"}]}}
+        if entrada == "consigo_pagar":   # oferta que não existe entre as liberadas: mensagem segura
+            return {**base, "mensagens": [{"papel": "agente", "texto": "Tenho uma opção de crédito para você."}], "acao": "mostrar_oferta",
+                    "oferta_id": "xyz_99", "numeros_citados": [], "validador": {"aprovado": True, "violacoes": []}}
+        # texto livre: 5 mensagens -> o formato é ajustado para 3 na borda
+        return {**base, "mensagens": [{"papel": "agente", "texto": f"Mensagem {i}."} for i in range(1, 6)], "acao": "devolver_ao_iai",
+                "oferta_id": None, "numeros_citados": [], "validador": {"aprovado": True, "violacoes": []}}
+
+    falso = RuntimeGi(resposta=resposta, insight={"texto": "Bruno, a fatura fechou em R$ 3.619,95 e vence dia 20. Dá para juntar o que falta numa parcela que cabe.",
+                                                  "botao_primario": {"rotulo": "Conversar com o ia.i", "acao": "abrir_chat"}, "numeros_citados": ["R$ 3.619,95", "dia 20"],
+                                                  "validador": {"aprovado": True, "violacoes": []}})
+    monkeypatch.setattr(conversa, "carregar_runtime", lambda: falso)
+    monkeypatch.setenv("INSIGHT_COM_LLM", "true")
+    with TestClient(criar_app(req_por_minuto=10_000)) as c:
+        sid = c.post("/api/sessao", json={"cliente_id": BRUNO, "anomes": 202509}).json()["sessao_id"]
+        r = c.post("/api/consentimento", json={"sessao_id": sid, "concedido": True}).json()
+        assert r["insight"]["gerado_por"] == "llm" and r["turno"]["checagens"]["ok"] is True
+        j = c.post("/api/mensagem", json={"sessao_id": sid, "acao": "por_que_alta"}).json()
+        assert falso.kwargs[-1]["gatilho"] == "pergunta_cliente"
+        assert "pedalada" not in j["mensagens"][0]["texto"] and "formas de pagar" in j["mensagens"][0]["texto"] and "equipe" in j["mensagens"][1]["texto"]
+        assert j["checagens"]["mensagem_segura"] is True and "pedalada" in j["checagens"]["termos_proibidos"]["encontrados"]
+        assert j["turno"]["mensagem_segura"] is True and j["turno"]["validador"]["aprovado"] is False and j["turno"]["validador"]["violacoes"][0]["regra"] == "R4"
+        j = c.post("/api/mensagem", json={"sessao_id": sid, "acao": "consigo_pagar"}).json()
+        assert j["checagens"]["oferta"]["ok"] is False and j["oferta_id"] is None and "formas de pagar" in j["mensagens"][0]["texto"]
+        assert not any(k["tipo"] == "comparador" for k in j["cards"])
+        j = c.post("/api/mensagem", json={"sessao_id": sid, "texto": "e o CDB, vale a pena?"}).json()
+        assert falso.kwargs[-1]["gatilho"] == "pergunta_cliente" and len(j["mensagens"]) == 3 and j["checagens"]["tamanho"]["ajustado"] is True
+        assert j["acao"] == "devolver_ao_iai" and {s["acao"] for s in j["sugestoes"]} == {"ver_opcoes", "falar_com_pessoa"}
+        # nao_quero e falar_com_pessoa: em código, sem chamar o modelo; recusa e encaminhamento espelhados no runtime
+        n = len(falso.chamadas)
+        j = c.post("/api/mensagem", json={"sessao_id": sid, "acao": "nao_quero"}).json()
+        assert len(falso.chamadas) == n and j["cards"][0]["tipo"] == "aviso" and falso.deltas[-1].get("recusou_oferta") is True
+        j = c.post("/api/mensagem", json={"sessao_id": sid, "acao": "falar_com_pessoa"}).json()
+        assert len(falso.chamadas) == n and j["acao"] == "transferir_humano" and j["cards"][0]["tipo"] == "encaminhamento" and falso.deltas[-1].get("encaminhado")
+        p = c.get(f"/api/painel/{sid}").json()
+        assert p["validador"]["mensagens_seguras"] == 2 and p["validador"]["reprovados"] == 1 and p["validador"]["checagens_reprovadas"] >= 2
+        assert [t["llm"] for t in p["turnos"]] == [True, True, True, True, False, False]   # insight pelo modelo, 3 turnos de conversa, 2 em código
+
+
+def test_modo_gi_insight_longo_vira_texto_seguro(monkeypatch):
+    from server import conversa
+
+    falso = RuntimeGi(insight={"texto": "x" * 200 + " R$ 9.999,99", "botao_primario": {"rotulo": "Ver", "acao": "abrir_chat"},
+                               "numeros_citados": ["R$ 9.999,99"], "validador": {"aprovado": True, "violacoes": []}})
+    monkeypatch.setattr(conversa, "carregar_runtime", lambda: falso)
+    monkeypatch.setenv("INSIGHT_COM_LLM", "true")
+    with TestClient(criar_app(req_por_minuto=10_000)) as c:
+        sid = c.post("/api/sessao", json={"cliente_id": ANA, "anomes": 202508}).json()["sessao_id"]
+        r = c.post("/api/consentimento", json={"sessao_id": sid, "concedido": True}).json()
+        assert "formas de pagar" in r["insight"]["texto"] and len(r["insight"]["texto"]) <= 160 and r["insight"]["gerado_por"].startswith("codigo")
+        assert r["turno"]["checagens"]["tamanho"]["ok"] is False and r["turno"]["checagens"]["numeros"]["sem_origem"] == ["R$ 9.999,99"]
+        assert r["turno"]["mensagem_segura"] is True
+
+
+def test_sem_llm_insight_seguro_e_turnos_no_painel(cliente):
+    r = cliente.post("/api/sessao", json={"cliente_id": BRUNO, "anomes": 202509}).json()
+    assert r["modo_conversa"] == "sem_llm" and r["insight"]["estado"] == "sem_adesao" and "R$ 3.619,95" in r["insight"]["texto"]
+    sid = r["sessao_id"]
+    j = msg(cliente, sid, acao="ver_opcoes")   # sem consentimento: só as formas de pagar
+    assert j["acao"] == "mostrar_formas_de_pagar" and j["turno"]["checagens"]["consentimento"]["ok"] is True
+    cliente.post("/api/consentimento", json={"sessao_id": sid, "concedido": True})
+    j = msg(cliente, sid, acao="ver_opcoes")
+    assert j["acao"] == "mostrar_oferta" and j["oferta_id"] == "con_01" and j["numeros_citados"] == [] and j["validador"] is None
+    p = cliente.get(f"/api/painel/{sid}").json()
+    assert p["rotulo_modelo"] == "nenhum (sem LLM)" and p["finops"]["rotulo_modelo"] == "nenhum (sem LLM)" and p["modo_conversa"] == "sem_llm"
+    assert [t["acao"] for t in p["turnos"]] == ["ver_opcoes", "consentimento", "ver_opcoes"] and all(t["llm"] is False for t in p["turnos"])
+    assert p["validador"]["ativo"] is True and p["validador"]["turnos_com_llm"] == 0 and "sem LLM" in p["validador"]["nota"]
+    assert all(t["validador"]["aplicado"] is False for t in p["turnos"]) and all(t["checagens"]["ok"] for t in p["turnos"])
+    s = cliente.get("/api/saude").json()
+    assert s["modo_conversa"] == "sem_llm" and s["rotulo_modelo"] == "nenhum (sem LLM)"
+
+
+def test_sem_llm_no_limite_formas_de_pagar_e_equipe(cliente):
+    from tests.conftest import NO_LIMITE
+
+    sid = sessao(cliente, NO_LIMITE, 202508)
+    j = msg(cliente, sid, acao="ver_opcoes")
+    assert j["acao"] == "mostrar_formas_de_pagar" and [k["tipo"] for k in j["cards"]] == ["diagnostico", "encaminhamento", "formas_de_pagar"]
+    assert [o["acao"] for o in j["cards"][2]["dados"]["opcoes"]] == ["pagar_total", "pagar_minimo", "pagar_outro_valor"]
+    assert "equipe" in j["mensagens"][1]["texto"] and j["checagens"]["oferta"]["liberadas"] == []
+    for termo in ("crédito", "parcel", "empréstimo"):
+        assert termo not in j["mensagens"][1]["texto"].lower()
+
+
+def test_modo_gi_teto_de_chamadas_por_sessao(monkeypatch):
+    from server import conversa
+
+    falso = RuntimeGi()
+    monkeypatch.setattr(conversa, "carregar_runtime", lambda: falso)
+    monkeypatch.setenv("CHAMADAS_LLM_POR_SESSAO_MAX", "3")
+    monkeypatch.setenv("INSIGHT_COM_LLM", "true")
+    with TestClient(criar_app(req_por_minuto=10_000)) as c:
+        sid = c.post("/api/sessao", json={"cliente_id": ANA, "anomes": 202508}).json()["sessao_id"]
+        c.post("/api/consentimento", json={"sessao_id": sid, "concedido": True})          # 1 chamada (insight)
+        c.post("/api/mensagem", json={"sessao_id": sid, "acao": "ver_opcoes"})             # +2 = 3
+        n = len(falso.chamadas)
+        j = c.post("/api/mensagem", json={"sessao_id": sid, "acao": "consigo_pagar"}).json()   # teto: sem chamar o modelo
+        assert len(falso.chamadas) == n and j["mensagem_segura"] is True and "formas de pagar" in j["mensagens"][0]["texto"]
+        assert j["checagens"]["teto_chamadas"]["ok"] is False and j["turno"]["mensagem_segura"] is True and j["turno"]["llm"] is False
+        assert any(t["ferramenta"] == "finops.teto_sessao" for t in c.get(f"/api/trace/{sid}").json())
+
+
+def test_modo_gi_insight_desligado_usa_texto_de_codigo(monkeypatch):
+    from server import conversa
+
+    falso = RuntimeGi()
+    monkeypatch.setattr(conversa, "carregar_runtime", lambda: falso)
+    monkeypatch.delenv("INSIGHT_COM_LLM", raising=False)   # padrão de agent/.env.example: false (2 chamadas a menos por sessão)
+    with TestClient(criar_app(req_por_minuto=10_000)) as c:
+        sid = c.post("/api/sessao", json={"cliente_id": ANA, "anomes": 202508}).json()["sessao_id"]
+        r = c.post("/api/consentimento", json={"sessao_id": sid, "concedido": True}).json()
+        assert not any(x.startswith("insight:") for x in falso.chamadas)
+        assert r["insight"]["gerado_por"] == "codigo" and r["insight"]["texto"] == "insight determinístico do runtime"
+        assert r["turno"]["llm"] is False and r["turno"]["modo"] == "insight" and r["turno"]["validador"]["aplicado"] is False

@@ -255,6 +255,9 @@ main {
 .trace-item .numeros { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .trace-item .numeros span { font-size: 13px; padding: 2px 8px; border-radius: 999px; background: var(--fundo); border: 1px solid var(--borda); font-family: var(--fonte-numero); }
 .codigo { font-family: var(--fonte-numero); font-size: 13px; background: var(--fundo); border-radius: 8px; padding: 8px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+.trace-item .numeros .chk-ok { color: var(--ok); border-color: var(--ok); }
+.trace-item .numeros .chk-falha { color: var(--critico); border-color: var(--critico); background: var(--critico-suave); }
+.msg .papel .etiqueta { font-size: 11px; padding: 1px 6px; margin-left: 4px; }
 .lista-numeros { max-height: 220px; overflow: auto; font-size: 13px; }
 
 /* ---------- avisos e rodapé ---------- */

@@ -4,6 +4,9 @@
  * de numeros_validados que a API devolve (o mesmo conjunto que o guardião usa); a expressão de condição proibida nunca aparece
  * (vira "depende de aprovação"); a IA se identifica como IA e sempre oferece uma pessoa.
  * Os `dados` dos cards são os dicts do cabe_core (capacidade.motor, ofertas.montar, ofertas.plano_de, acompanhar.ciclo, painel.juri).
+ * Campos novos do modo da Gi (opcionais em toda resposta): acao (formato do prompt), oferta_id, numeros_citados, validador
+ * {aprovado, violacoes}, checagens (em código), turno (registro do painel), gatilho, modo_conversa. Balões vêm de `mensagens`;
+ * cards vêm de `cards` ou, por `acao`, dos dados já recebidos; a pergunta do PIX chega como chips "É renda" / "Não é renda".
  */
 (function () {
   'use strict';
@@ -14,7 +17,7 @@
     bruno: { chave: 'bruno', cliente_id: '3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b', anomes: 202509, rotulo: 'Bruno · Rolando' },
   };
   const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  const ACOES_ANALISE = ['ver_opcoes', 'consigo_pagar', 'por_que_alta'];
+  const ACOES_ANALISE = ['ver_opcoes', 'consigo_pagar', 'por_que_alta', 'confirmar_entrada_regular'];
   const CHIPS_PADRAO = [
     { rotulo: 'Ver opções', acao: 'ver_opcoes' },
     { rotulo: 'Consigo pagar minha fatura?', acao: 'consigo_pagar' },
@@ -25,7 +28,14 @@
     ver_opcoes: 'Ver opções', consigo_pagar: 'Consigo pagar minha fatura?', por_que_alta: 'Por que minha fatura veio tão alta?',
     confirmar: 'Quero essa opção', falar_com_pessoa: 'Quero falar com uma pessoa', nao_quero: 'Prefiro continuar como está',
     pagar_minimo: 'Vou pagar o mínimo', pagar_outro_valor: 'Vou pagar outro valor',
+    confirmar_entrada_regular: 'É renda', nao_contar_pix: 'Não é renda', contar_pix: 'É renda', ver_formas_de_pagar: 'Ver formas de pagar',
   };
+  const ROTULO_ACAO_AGENTE = {
+    nenhuma: 'nenhuma', mostrar_formas_de_pagar: 'mostrar formas de pagar', mostrar_oferta: 'mostrar oferta', abrir_resumo_contrato: 'abrir resumo (nada contratado)',
+    registrar_permissao_ampliacao: 'registrar permissão de ampliação', mudar_vencimento: 'mudar vencimento', revogar_consentimento: 'revogar consentimento',
+    transferir_humano: 'transferir para uma pessoa', devolver_ao_iai: 'devolver ao ia.i',
+  };
+  const FRASE_VALIDADOR = 'Nenhuma mensagem chega ao cliente sem passar pelo validador';
   const MOTIVOS_DISLIKE = ['não entendi', 'não é o que preciso', 'insistente', 'errou meus números'];
   const ERRO_PADRAO = 'Não consegui ler seu extrato agora. Posso tentar de novo ou te passar para uma pessoa.';
 
@@ -38,9 +48,9 @@
       escolha: null, pagamentoSimulado: null, intercepto: null,
       chat: { itens: [], sugestoes: [], analisou: false, ocupado: false, encerrado: false },
       plano: { confirmado: false, dados: null, opcao: null, teto: null, resumo: '', ciclos: [], encerrado: false },
-      motor: null, ofertas: null,
+      motor: null, ofertas: null, contarPix: null, insightDispensado: false,
       numeros: new Map(), guardiao: { removidos: 0, termos: 0 }, feedback: [], etapas: new Set(),
-      trace: [], painel: null, tela: 'cartao', painelAba: 'trace',
+      turnos: [], trace: [], painel: null, tela: 'cartao', painelAba: 'trace',
     };
   }
 
@@ -99,6 +109,25 @@
     }
     return lista[0];
   }
+  /** Frase arredondada (docs/06; contexto da Gi: "R$ 1.700"): vale se algum número validado arredonda para esses reais. */
+  function origemArredondada(reais, dica) {
+    for (const [v, set] of estado.numeros.entries()) {
+      if (Number.isInteger(v) && Math.round(v / 100) === reais && set.size) {
+        const lista = Array.from(set);
+        const pref = dica ? lista.find((o) => o.toLowerCase().includes(dica)) : null;
+        return pref || lista[0];
+      }
+    }
+    return 'sem-origem';
+  }
+  /** Registro do turno (checagens em código + veredito do validador) para o painel da banca; a API manda `turno` em cada resposta. */
+  function registrarTurno(turno) {
+    if (!turno || typeof turno !== 'object') return;
+    if (estado.turnos.some((t) => t.ordem === turno.ordem && t.acao === turno.acao)) return;
+    const t = Object.assign({}, turno);
+    if (estado.turnos.some((x) => x.ordem === t.ordem)) t.ordem = estado.turnos.length + 1;   // respostas gravadas numeram por variante
+    estado.turnos.push(t);
+  }
 
   /** Número com origem. Aceita inteiro do núcleo (origem resolvida pelo registro) ou {valor, origem}. Nunca calcula. */
   function num(item, opts) {
@@ -122,18 +151,23 @@
   /** Marca os números de um texto do agente com a origem registrada (a cadeia de rastreabilidade chega ao texto). */
   function marcarTexto(texto) {
     const frag = document.createDocumentFragment();
-    const re = /(R\$\s?\d{1,3}(?:\.\d{3})*,\d{2})|(\bdia\s\d{1,2}\b)|(\b\d{1,3}\sdias?\b)|(\b\d{1,3}\sparcelas?\b)|(\b\d{1,3}%)/g;
+    // R$ com centavos (cards) ou arredondado (frases, contexto da Gi), "dia N", "N dias", "N parcelas", "N meses", "N%"
+    const re = /(R\$\s?\d{1,3}(?:\.\d{3})*(?:,\d{2})?)|(\bdia\s\d{1,2}\b)|(\b\d{1,3}\sdias?\b)|(\b\d{1,3}\s(?:parcelas?|vezes|mês|meses)\b)|(\b\d{1,3}(?:,\d{1,2})?%)/g;
     let ultimo = 0, m;
     texto = sanear(texto);
     while ((m = re.exec(texto))) {
       if (m.index > ultimo) frag.append(texto.slice(ultimo, m.index));
-      let valor, dica;
-      if (m[1]) { valor = Math.round(parseFloat(m[1].replace(/R\$\s?/, '').replace(/\./g, '').replace(',', '.')) * 100); dica = null; }
+      let valor, dica, origem;
+      if (m[1]) {
+        const bruto = m[1].replace(/R\$\s?/, '');
+        if (bruto.includes(',')) { valor = Math.round(parseFloat(bruto.replace(/\./g, '').replace(',', '.')) * 100); origem = origemDe(valor, null); }
+        else { origem = origemArredondada(parseInt(bruto.replace(/\./g, ''), 10), null); }
+      }
       else if (m[2]) { valor = parseInt(m[2].replace(/\D/g, ''), 10); dica = 'dia'; }
       else if (m[3]) { valor = parseInt(m[3], 10); dica = 'dias'; }
       else if (m[4]) { valor = parseInt(m[4], 10); dica = 'parcela'; }
-      else { valor = parseInt(m[5], 10); dica = 'pct'; }
-      const origem = origemDe(valor, dica);
+      else { valor = parseFloat(m[5].replace(',', '.')); dica = 'pct'; }
+      if (origem == null) origem = origemDe(valor, dica);
       frag.append(h('span', { class: 'num', 'data-origem': origem, title: 'origem: ' + origem }, m[0]));
       ultimo = m.index + m[0].length;
     }
@@ -178,14 +212,16 @@
   }
 
   class Mock {
-    constructor(persona) { this.persona = persona; this.dados = null; }
-    async carregar() { this.dados = await fetchJson('mock/' + this.persona + '.json'); }
-    async sessao() { await espera(300); return clone(this.dados.sessao); }
+    /** Respostas gravadas (analise/gera_mock_demo.py). `com_pix` é a variante da persona depois de "É renda" (contas refeitas). */
+    constructor(persona) { this.persona = persona; this.dados = null; this.base = null; }
+    async carregar() { this.base = await fetchJson('mock/' + this.persona + '.json'); this.dados = this.base; }
+    async sessao() { await espera(300); this.dados = this.base; return clone(this.dados.sessao); }
     async consentimento(concedido) { await espera(300); return clone(concedido ? this.dados.consentimento : this.dados.consentimento_negado); }
     async mensagem(m) {
       const chave = m.acao || 'texto';
       const precisaAnalise = ACOES_ANALISE.includes(chave) && !estado.chat.analisou;
       await espera(precisaAnalise ? 2800 : 600);
+      if (chave === 'confirmar_entrada_regular' && this.base.com_pix) this.dados = Object.assign({}, this.base, this.base.com_pix);
       let r = this.dados.mensagem[chave] || this.dados.mensagem.texto;
       if (r && r.por_escolha) r = r.por_escolha[(estado.escolha && estado.escolha.acao) || 'padrao'] || r.por_escolha.padrao;
       return clone(r);
@@ -198,7 +234,7 @@
       return clone(lista[k]);
     }
     async trace() { return clone((this.dados.trace || []).filter((t) => estado.etapas.has(t.etapa))); }
-    async painel() { return clone(this.dados.painel); }
+    async painel() { const p = clone(this.dados.painel); p.turnos = clone(estado.turnos); return p; }
     async saude() { return clone(this.dados.saude); }
   }
 
@@ -245,7 +281,7 @@
       if (det.modo === 'api') {
         estado.api = new Api(det.saude);
         estado.saude = det.saude;
-        pill.textContent = 'API · dados ' + (det.saude.dados || '?') + (det.saude.modelo ? ' · ' + det.saude.modelo : '');
+        pill.textContent = 'API · dados ' + (det.saude.dados || '?') + ' · ' + (det.saude.modelo ? det.saude.modelo + (det.saude.modo_conversa ? ' · modo ' + det.saude.modo_conversa : '') : 'sem LLM');
       } else {
         const mock = new Mock(persona);
         await mock.carregar();
@@ -257,6 +293,8 @@
       estado.sessao = await estado.api.sessao(PERSONAS[persona]);
       registrar(estado.sessao.numeros_validados);
       estado.consentimento = estado.sessao.consentimento === true ? true : null;
+      estado.modoConversa = estado.sessao.modo_conversa || (estado.saude && estado.saude.modo_conversa) || null;
+      estado.insight = estado.sessao.insight || null;   // sem consentimento: a mensagem segura (fatura e formas de pagar)
       estado.etapas.add('sessao');
       renderCartao();
     } catch (e) {
@@ -302,14 +340,24 @@
       h('div', { class: 'acoes' },
         h('button', { class: 'btn btn-primario btn-bloco', type: 'button', onclick: () => { renderPagar(); mostrar('pagar'); } }, 'Pagar fatura'))));
 
-    if (estado.consentimento === true && estado.insight) {
+    if (estado.insight && estado.insight.texto && !estado.insightDispensado && estado.consentimento !== false) {
       const i = estado.insight;
-      const classe = { cabe: 'card-ok', falta_pontual: 'card-atencao', falta_que_se_repete: 'card-atencao', sem_credito: '', cobertura_em_andamento: 'card-ok' }[i.estado] || '';
+      const classe = { cabe: 'card-ok', falta_pontual: 'card-atencao', falta_que_se_repete: 'card-atencao', falta: 'card-atencao', sem_credito: '', sem_adesao: '', cobertura_em_andamento: 'card-ok' }[i.estado] || '';
+      const botoes = [];
+      const acaoBotao = (b) => {
+        const a = (b && b.acao) || 'nenhuma';
+        if (a === 'ver_formas_de_pagar' || a === 'ir_pagar') { renderPagar(); mostrar('pagar'); return; }
+        if (a === 'nenhuma' || a === 'dispensar') { estado.insightDispensado = true; renderCartao(); return; }
+        if (estado.consentimento !== true) { renderPagar(); mostrar('pagar'); return; }
+        abrirChat(a === 'abrir_chat' ? 'ver_opcoes' : a);
+      };
+      if (i.botao && i.botao.rotulo) botoes.push(h('button', { class: 'btn btn-secundario btn-bloco', type: 'button', onclick: () => acaoBotao(i.botao) }, i.botao.rotulo));
+      if (i.botao_secundario && i.botao_secundario.rotulo) botoes.push(h('button', { class: 'btn btn-fantasma btn-bloco', type: 'button', onclick: () => acaoBotao(i.botao_secundario) }, i.botao_secundario.rotulo));
       filhos.push(h('div', { class: 'card ' + classe },
-        h('span', { class: 'rotulo' }, 'ia.i · pelo seu extrato'),
+        h('div', { class: 'fatura-topo' }, h('span', { class: 'rotulo' }, 'ia.i, cabe no bolso'),
+          h('span', { class: 'etiqueta etiqueta-neutra', title: 'quem escreveu este texto' }, i.gerado_por === 'llm' ? 'modelo + validador' : String(i.gerado_por || '').startsWith('gravado') ? 'resposta gravada' : (i.gerado_por ? 'texto fixo' : 'simulação'))),
         h('p', { class: 'frase-motor' }, marcarTexto(i.texto)),
-        i.botao && i.botao.rotulo ? h('div', { class: 'acoes' },
-          h('button', { class: 'btn btn-secundario btn-bloco', type: 'button', onclick: () => abrirChat(i.botao.acao || 'ver_opcoes') }, i.botao.rotulo)) : null));
+        botoes.length ? h('div', { class: 'acoes' }, ...botoes) : null));
     }
 
     if (estado.pagamentoSimulado != null) {
@@ -326,11 +374,13 @@
       estado.consentimento = r.consentimento === true;
       estado.registroConsentimento = r.registro || null;
       registrar(r.numeros_validados);
+      registrarTurno(r.turno);
+      estado.insightDispensado = false;
       if (estado.consentimento) {
         estado.etapas.add('consentimento');
         estado.insight = r.insight || { estado: 'desconhecido', texto: 'Quer ver se a fatura cabe no seu mês?', botao: { rotulo: 'Ver no ia.i', acao: 'consigo_pagar' } };
       } else {
-        estado.insight = null;
+        estado.insight = r.insight_seguro || null;
       }
       renderCartao();
     } catch (e) { avisar((e && e.mensagem_cliente) || ERRO_PADRAO); }
@@ -402,6 +452,7 @@
       const r = await estado.api.mensagem({ acao, valor });
       registrar(r.numeros_validados);
       contarGuardiao(r.guardiao);
+      registrarTurno(r.turno);
       const card = (r.cards || []).find((c) => c.tipo === 'insight' || c.tipo === 'aviso');
       if (card) {
         estado.intercepto = card;
@@ -422,6 +473,7 @@
       const r = await estado.api.mensagem({ acao: 'nao_quero' });
       registrar(r.numeros_validados);
       contarGuardiao(r.guardiao);
+      registrarTurno(r.turno);
       const texto = (r.mensagens && r.mensagens[0] && r.mensagens[0].texto) || 'Tudo bem. Se mudar de ideia até o vencimento, é só me chamar.';
       estado.intercepto = { tipo: 'aviso', dados: { texto } };
       estado.chat.itens.push({ id: idNovo(), tipo: 'msg', papel: 'cliente', texto: 'Continuar com este valor' });
@@ -450,14 +502,16 @@
 
   async function enviarAcao(acao, texto, rotulo) {
     if (estado.chat.ocupado) return;
+    if (acao === 'ir_cartao') { mostrar('cartao'); return; }
+    if (acao === 'ver_formas_de_pagar') { renderPagar(); mostrar('pagar'); return; }
     if (estado.consentimento !== true && acao !== 'falar_com_pessoa') {
       estado.chat.itens.push({ id: idNovo(), tipo: 'msg', papel: 'agente', texto: 'Para olhar seu mês eu preciso da sua permissão. Ela fica no cartão, no topo da fatura. Sem ela, mostro só as formas de pagar.' });
       estado.chat.sugestoes = [{ rotulo: 'Voltar ao cartão', acao: 'ir_cartao' }, { rotulo: 'Falar com uma pessoa', acao: 'falar_com_pessoa', secundario: true }];
       renderChat();
       return;
     }
-    if (acao === 'ir_cartao') { mostrar('cartao'); return; }
     if (acao === 'avancar_mes') { await avancarMes(); return; }
+    if (acao === 'contar_pix') acao = 'confirmar_entrada_regular';
     if (acao === 'ver_opcoes' && estado.chat.analisou && estado.ofertas) {
       // já analisado: reexibe o comparador sem nova chamada ao modelo
       estado.chat.itens.push({ id: idNovo(), tipo: 'msg', papel: 'cliente', texto: ROTULO_ACAO[acao] });
@@ -471,27 +525,40 @@
     estado.chat.ocupado = true;
     estado.chat.sugestoes = [];
     const analise = acao && ACOES_ANALISE.includes(acao) && !estado.chat.analisou;
-    estado.chat.itens.push({ id: 'carregando', tipo: 'carregando', texto: analise ? 'analisando seus últimos 90 dias…' : 'pensando…' });
+    estado.chat.itens.push({ id: 'carregando', tipo: 'carregando', texto: acao === 'confirmar_entrada_regular' ? 'refazendo as contas com o PIX…' : analise ? 'analisando seus últimos 90 dias…' : 'pensando…' });
     renderChat();
     try {
       const r = await estado.api.mensagem(acao ? { acao } : { texto });
       estado.chat.itens = estado.chat.itens.filter((i) => i.id !== 'carregando');
       registrar(r.numeros_validados);
       contarGuardiao(r.guardiao);
+      registrarTurno(r.turno);
+      if (acao === 'confirmar_entrada_regular') estado.contarPix = true;
+      if (acao === 'nao_contar_pix') estado.contarPix = false;
+      // balões a partir de `mensagens`; cards a partir de `cards` (a API já completa os cards pela `acao` do agente)
       const msgs = (r.mensagens || []).filter((m) => m.papel !== 'cliente');
-      const cards = r.cards || [];
+      const cards = (r.cards || []).slice();
+      const acaoAgente = r.acao || 'nenhuma';
+      if (acaoAgente === 'mostrar_formas_de_pagar' && !cards.some((c) => c.tipo === 'formas_de_pagar' || c.tipo === 'comparador')) {
+        cards.push({ tipo: 'formas_de_pagar', dados: { opcoes: estado.sessao.fatura.opcoes_pagamento || [] } });
+      }
+      if (acaoAgente === 'mostrar_oferta' && estado.ofertas && !cards.some((c) => c.tipo === 'comparador')) cards.push({ tipo: 'comparador', dados: estado.ofertas });
       const n = Math.max(msgs.length, cards.length);
       for (let i = 0; i < n; i++) {
-        if (msgs[i]) estado.chat.itens.push({ id: idNovo(), tipo: 'msg', papel: 'agente', texto: msgs[i].texto });
+        if (msgs[i]) estado.chat.itens.push({ id: idNovo(), tipo: 'msg', papel: 'agente', texto: msgs[i].texto, validador: r.validador || null });
         if (cards[i]) {
           estado.chat.itens.push({ id: idNovo(), tipo: 'card', card: cards[i] });
           absorverCard(cards[i]);
         }
       }
       if (analise) { estado.chat.analisou = true; estado.etapas.add('analise'); }
-      if (acao === 'confirmar' && cards.some((c) => c.tipo === 'confirmacao')) estado.etapas.add('confirmar');
-      if (acao === 'falar_com_pessoa' || cards.some((c) => c.tipo === 'encaminhamento' && c.dados && c.dados.status)) estado.chat.encerrado = true;
+      if ((acao === 'confirmar' || acaoAgente === 'abrir_resumo_contrato') && cards.some((c) => c.tipo === 'confirmacao')) estado.etapas.add('confirmar');
+      if (acao === 'falar_com_pessoa' || acaoAgente === 'transferir_humano' || cards.some((c) => c.tipo === 'encaminhamento' && c.dados && c.dados.status)) estado.chat.encerrado = true;
       if (acao === 'nao_quero') estado.chat.encerrado = true;
+      if (acaoAgente === 'revogar_consentimento') {
+        estado.consentimento = false; estado.insight = null; estado.chat.analisou = false; estado.motor = null; estado.ofertas = null;
+        renderCartao();
+      }
       estado.chat.sugestoes = r.sugestoes || (estado.chat.encerrado ? [] : sugestoesPadrao());
     } catch (e) {
       estado.chat.itens = estado.chat.itens.filter((i) => i.id !== 'carregando');
@@ -546,8 +613,12 @@
 
   function renderMsg(it) {
     const agente = it.papel === 'agente';
+    const v = it.validador;
+    const selo = agente && v && typeof v === 'object' && v.aprovado != null
+      ? h('span', { class: 'etiqueta ' + (v.aprovado ? 'etiqueta-ok' : 'etiqueta-atencao'), title: FRASE_VALIDADOR }, v.aprovado ? 'validador: ok' : 'validador: revisto')
+      : null;
     const el = h('div', { class: 'msg ' + (agente ? 'agente' : 'cliente') },
-      h('div', { class: 'papel' }, agente ? 'ia.i · IA' : 'Você'),
+      h('div', { class: 'papel' }, agente ? 'ia.i · IA' : 'Você', selo ? ' ' : null, selo),
       h('div', { class: 'texto' }, agente ? marcarTexto(it.texto) : sanear(it.texto)));
     if (agente) el.append(renderAvaliacao(it));
     return el;
@@ -588,10 +659,41 @@
       case 'confirmacao': return cardConfirmacao(d);
       case 'encaminhamento': return cardEncaminhamento(d);
       case 'acompanhamento': return cardAcompanhamento(d);
+      case 'formas_de_pagar': return cardFormasDePagar(d);
+      case 'opcoes_da_fatura': return cardOpcoesDaFatura(d);
       case 'aviso':
       default:
         return h('div', { class: 'card ' + (d.erro ? 'erro' : 'card-atencao') }, h('span', { class: 'rotulo' }, 'ia.i'), h('p', null, marcarTexto(d.texto || '')));
     }
+  }
+
+  /** dados = {opcoes: [{rotulo, valor, acao}]} (as mesmas formas de pagar da tela do cartão; nada de crédito) */
+  function cardFormasDePagar(d) {
+    const opcoes = (d.opcoes && d.opcoes.length ? d.opcoes : (estado.sessao.fatura.opcoes_pagamento || []));
+    const lista = h('div', { class: 'acoes' });
+    for (const o of opcoes) {
+      lista.append(h('button', { class: 'escolha', type: 'button', onclick: () => {
+        if (o.acao === 'pagar_outro_valor' || valorDe(o.valor) == null) { renderPagar(); mostrar('pagar'); return; }
+        escolherPagamento(o.acao, valorDe(o.valor)); renderPagar(); mostrar('pagar');
+      } }, h('span', null, o.rotulo), valorDe(o.valor) != null ? num(o.valor, { dica: o.acao === 'pagar_minimo' ? 'minimo' : 'fatura.valor' }) : h('span', { class: 'sub' }, 'digitar')));
+    }
+    return h('div', { class: 'card' },
+      h('span', { class: 'rotulo' }, 'Formas de pagar esta fatura'),
+      d.texto ? h('p', { class: 'sub' }, sanear(d.texto)) : null,
+      lista,
+      h('p', { class: 'nota' }, 'Sem crédito nesta conversa. Uma pessoa do time pode ajudar a qualquer momento.'));
+  }
+
+  /** dados = {texto, formas: [{forma, valor (texto já formatado pelo núcleo)}]} (card do runtime no modo gi/tools; sem crédito) */
+  function cardOpcoesDaFatura(d) {
+    const ul = h('ul', { class: 'evidencias' });
+    for (const f of d.formas || []) ul.append(h('li', null, h('span', null, 'Pagar o ' + (f.forma || '')), h('span', null, marcarTexto(String(f.valor || '')))));
+    return h('div', { class: 'card' },
+      h('span', { class: 'rotulo' }, 'Formas de pagar esta fatura'),
+      d.texto ? h('p', { class: 'sub' }, marcarTexto(d.texto)) : null,
+      ul.childElementCount ? ul : null,
+      h('div', { class: 'acoes' }, h('button', { class: 'btn btn-secundario btn-bloco', type: 'button', onclick: () => { renderPagar(); mostrar('pagar'); } }, 'Ver formas de pagar')),
+      h('p', { class: 'nota' }, 'Sem crédito nesta conversa. Uma pessoa do time pode ajudar a qualquer momento.'));
   }
 
   function cardInsight(d, contexto) {
@@ -689,7 +791,7 @@
       linha('Cabe no mês?', h('span', { class: 'nao' }, 'não'), (o) => o.cabe ? h('span', { class: 'sim' }, 'sim') : h('span', { class: 'nao' }, 'não')));
     const sm = cont.se_pagar_minimo;
     return h('div', { class: 'card card-acento' },
-      h('span', { class: 'rotulo' }, 'Saídas lado a lado · da mais barata para a mais cara'),
+      h('span', { class: 'rotulo' }, 'Saídas lado a lado · custo total de cada uma'),   // a ordem é por custo; a frase "da mais barata para a mais cara" nunca aparece (prompt da Gi)
       colunas.length ? h('div', { class: 'comparador' }, h('table', null, h('thead', null, cab), corpo)) : h('p', null, 'Nenhuma opção de crédito cabe no seu mês. Uma pessoa do time pode ajudar.'),
       sm ? h('p', { class: 'nota' }, 'Se pagar só o mínimo (', num(sm.paga_agora, { dica: 'se_pagar_minimo.paga_agora' }), '), ficam ', num(sm.nao_pago, { dica: 'se_pagar_minimo.nao_pago' }), ' para trás: ', num(sm.custo_1_mes, { dica: 'se_pagar_minimo.custo_1_mes' }), ' de juros no 1º mês.') : null,
       of.teto_cartao_mes != null && colunas.length && !cobertura(colunas[0]) ? h('p', { class: 'nota' }, 'Com a recomendada, até a próxima fatura cabem ', num(of.teto_cartao_mes, { dica: 'teto_cartao_mes' }), ' no cartão.') : null,
@@ -831,7 +933,7 @@
     raiz.replaceChildren(h('p', { class: 'sub' }, 'Carregando…'));
     try {
       if (estado.painelAba === 'trace') estado.trace = await estado.api.trace();
-      else { estado.painel = await estado.api.painel(); registrar(estado.painel.numeros_com_origem); }
+      else { estado.painel = await estado.api.painel(); registrar(estado.painel.numeros_com_origem); for (const t of (estado.painel.turnos || [])) registrarTurno(t); }
     } catch (e) {
       raiz.replaceChildren(h('div', { class: 'card erro' }, h('p', null, 'Não consegui carregar este painel: ' + ((e && e.message) || ''))));
       return;
@@ -840,12 +942,14 @@
     const filhos = [h('div', { class: 'card' },
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Sessão'), h('span', { class: 'valor' }, s.sessao_id || '—')),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Dados'), h('span', { class: 'valor' }, estado.modo === 'api' ? 'API · ' + (estado.saude.dados || '?') : 'respostas gravadas (mock)')),
-      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Modelo'), h('span', { class: 'valor' }, (estado.saude && estado.saude.modelo) || 'nenhum (mock)')),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Modelo'), h('span', { class: 'valor' }, estado.modo === 'api' ? ((estado.saude && (estado.saude.rotulo_modelo || estado.saude.modelo)) || 'nenhum (sem LLM)') : 'nenhum (mock)')),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Modo de conversa'), h('span', { class: 'valor' }, estado.modo === 'api' ? (estado.modoConversa || (estado.saude && estado.saude.modo_conversa) || '—') : 'respostas gravadas')),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Persona'), h('span', { class: 'valor' }, PERSONAS[estado.persona].rotulo + (s.cliente && s.cliente.grupo_rotulo ? ' · grupo ' + s.cliente.grupo_rotulo : ''))),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Consentimento'), h('span', { class: 'valor' }, estado.consentimento === true ? 'sim' : estado.consentimento === false ? 'recusado' : 'não pedido ainda')),
       estado.registroConsentimento ? h('p', { class: 'nota' }, 'Registro: ' + [estado.registroConsentimento.data, estado.registroConsentimento.versao_texto, estado.registroConsentimento.escopo].filter(Boolean).join(' · ')) : null)];
     if (estado.painelAba === 'trace') filhos.push(painelTrace());
     else if (estado.painelAba === 'juri') filhos.push(painelJuri());
+    else if (estado.painelAba === 'validador') filhos.push(painelValidador());
     else filhos.push(painelFinops());
     raiz.replaceChildren(...filhos);
   }
@@ -903,11 +1007,56 @@
       h('p', { class: 'nota' }, 'Real: cliente, extrato, faturas reconstruídas, juros e modos de pagamento da base.'));
   }
 
+  /** Por turno: checagens em código, veredito do validador, regenerações, mensagem segura (a API manda `turno`; o painel manda `turnos`). */
+  function painelValidador() {
+    const v = (estado.painel && estado.painel.validador) || {};
+    const turnos = (estado.painel && estado.painel.turnos && estado.painel.turnos.length) ? estado.painel.turnos : estado.turnos;
+    const el = h('div', { class: 'card' }, h('h2', null, 'Checagens e validador'),
+      h('p', { class: 'destaque' }, FRASE_VALIDADOR + '.'),
+      h('p', { class: 'sub' }, 'Antes do validador, código: JSON, números, oferta, consentimento, tamanho, termos proibidos. O validador é um segundo agente que só aprova ou reprova; reprovado, o agente gera de novo uma vez; de novo reprovado, entra a mensagem segura.'),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Validador'), h('span', { class: 'valor' }, v.ativo == null ? '—' : (v.ativo ? 'ativo' : 'desligado') + (v.modelo ? ' · ' + v.modelo : ''))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Turnos · com modelo'), h('span', { class: 'valor num' }, String(turnos.length) + ' · ' + String(turnos.filter((t) => t.llm).length))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Aprovados · reprovados'), h('span', { class: 'valor num' }, String(v.aprovados != null ? v.aprovados : turnos.filter((t) => t.validador && t.validador.aprovado === true).length) + ' · ' + String(v.reprovados != null ? v.reprovados : turnos.filter((t) => t.validador && t.validador.aprovado === false).length))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Regenerações · mensagens seguras'), h('span', { class: 'valor num' }, String(v.regeneracoes != null ? v.regeneracoes : turnos.reduce((a, t) => a + (t.regeneracoes || 0), 0)) + ' · ' + String(v.mensagens_seguras != null ? v.mensagens_seguras : turnos.filter((t) => t.mensagem_segura).length))),
+      v.nota ? h('p', { class: 'nota' }, v.nota) : null);
+    if (!turnos.length) el.append(h('p', { class: 'nota' }, 'Ainda sem turnos. Dê o consentimento e converse com o ia.i.'));
+    for (const t of turnos) {
+      const c = t.checagens || {};
+      const chaves = Object.keys(c).filter((k) => c[k] && typeof c[k] === 'object' && k !== 'runtime');
+      const chips = h('div', { class: 'numeros' }, ...chaves.map((k) => {
+        const ok = c[k].ok !== false;
+        const det = k === 'numeros' && c[k].sem_origem && c[k].sem_origem.length ? ' ' + c[k].sem_origem.join(', ')
+          : k === 'termos_proibidos' && c[k].encontrados && c[k].encontrados.length ? ' ' + c[k].encontrados.join(', ')
+          : k === 'oferta' && c[k].oferta_id ? ' ' + c[k].oferta_id : '';
+        return h('span', { class: ok ? 'chk-ok' : 'chk-falha', title: JSON.stringify(c[k]) }, (ok ? '✓ ' : '✗ ') + k.replace(/_/g, ' ') + det);
+      }));
+      const vd = t.validador || {};
+      let veredito;
+      if (vd.aplicado === false || vd.aprovado == null) veredito = h('span', { class: 'etiqueta etiqueta-neutra' }, vd.motivo || 'validador não aplicado');
+      else if (vd.aprovado) veredito = h('span', { class: 'etiqueta etiqueta-ok' }, 'validador: aprovado');
+      else veredito = h('span', { class: 'etiqueta etiqueta-atencao' }, 'validador: reprovado' + ((vd.violacoes || []).length ? ' · ' + vd.violacoes.map((x) => x.regra || '?').join(', ') : ''));
+      const meta = [t.modo ? 'modo ' + t.modo : null, t.gatilho ? 'gatilho ' + t.gatilho : null, t.llm ? 'com modelo' : 'em código',
+        t.chamadas_llm != null && t.llm ? t.chamadas_llm + ' chamada' + (t.chamadas_llm === 1 ? '' : 's') : null,
+        t.latencia_ms != null && t.llm ? Math.round(t.latencia_ms) + ' ms' : null].filter(Boolean).join(' · ');
+      el.append(h('div', { class: 'trace-item' },
+        h('div', { class: 'cabeca' }, h('span', { class: 'ferramenta' }, (t.ordem != null ? t.ordem + '. ' : '') + (ROTULO_ACAO[t.acao] || t.acao || 'turno')), h('span', { class: 'meta' }, meta)),
+        t.acao_agente ? h('div', { class: 'resumo' }, 'ação do agente: ' + (ROTULO_ACAO_AGENTE[t.acao_agente] || t.acao_agente) + (t.oferta_id ? ' · oferta ' + t.oferta_id : '')) : null,
+        chips,
+        h('div', { class: 'meta', style: 'margin-top:6px' }, veredito, ' ',
+          t.regeneracoes ? h('span', { class: 'etiqueta etiqueta-atencao' }, t.regeneracoes + ' regeneração' + (t.regeneracoes === 1 ? '' : 'ões')) : null, ' ',
+          t.mensagem_segura ? h('span', { class: 'etiqueta etiqueta-critico' }, 'mensagem segura') : null),
+        (vd.violacoes || []).length ? h('ul', { class: 'evidencias' }, ...vd.violacoes.map((x) => h('li', null, h('span', null, (x.regra || '?') + (x.gravidade ? ' · ' + x.gravidade : '')), h('span', { class: 'sub' }, x.motivo || '')))) : null,
+        vd.orientacao_para_regenerar ? h('p', { class: 'nota' }, 'Orientação: ' + vd.orientacao_para_regenerar) : null));
+    }
+    return el;
+  }
+
   function painelFinops() {
     const f = (estado.painel && estado.painel.finops) || {};
     const fmt = (v, suf) => v == null ? '—' : v.toLocaleString('pt-BR') + (suf || '');
     const el = h('div', { class: 'card' }, h('h2', null, 'FinOps e guardrails'),
-      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Chamadas ao modelo'), h('span', { class: 'valor num' }, fmt(f.chamadas_llm))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Modelo'), h('span', { class: 'valor' }, f.rotulo_modelo || f.modelo || (estado.modo === 'api' ? 'nenhum (sem LLM)' : 'nenhum (mock)'))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Chamadas ao modelo' + (f.chamadas_validador ? ' (agente + validador)' : '')), h('span', { class: 'valor num' }, fmt(f.chamadas_llm) + (f.chamadas_validador ? ' (' + fmt(f.chamadas_validador) + ' do validador)' : ''))),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Tokens de entrada'), h('span', { class: 'valor num' }, fmt(f.tokens_entrada))),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Tokens de saída'), h('span', { class: 'valor num' }, fmt(f.tokens_saida))),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Latência p50 / p95'), h('span', { class: 'valor num' }, fmt(f.latencia_p50_ms, ' ms') + ' / ' + fmt(f.latencia_p95_ms, ' ms'))),
@@ -916,7 +1065,8 @@
       h('h3', null, 'Guardião (after_model_callback)'),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Números removidos'), h('span', { class: 'valor num' }, String(estado.guardiao.removidos))),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Termos bloqueados'), h('span', { class: 'valor num' }, String(estado.guardiao.termos))),
-      h('p', { class: 'nota' }, 'Acompanhamento mensal sem LLM. O modelo entra só na conversa; os números vêm do núcleo.'),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Mensagens seguras (checagem ou validador)'), h('span', { class: 'valor num' }, String(estado.turnos.filter((t) => t.mensagem_segura).length))),
+      h('p', { class: 'nota' }, 'Acompanhamento mensal sem LLM. O modelo entra só na conversa; os números vêm do núcleo. ' + FRASE_VALIDADOR + '.'),
       h('h3', null, 'Feedback da conversa (' + estado.feedback.length + ')'));
     for (const fb of estado.feedback) el.append(h('div', { class: 'linha' }, h('span', { class: 'chave' }, fb.tipo === 'like' ? 'gostei' : 'não gostei' + (fb.motivo ? ' · ' + fb.motivo : '')), h('span', { class: 'valor sub' }, fb.texto + '…')));
     return el;
