@@ -1,0 +1,32 @@
+# Só o necessário entra no contexto de build: config/, data/, demo/, agent/ (sem ambientes e caches).
+.git
+.gitignore
+.claude
+.DS_Store
+**/.DS_Store
+
+# ambientes, segredos e caches
+**/.venv
+**/.env
+**/.env.*
+!**/.env.example
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+*.key
+service-account*.json
+application_default_credentials.json
+
+# fora do serviço: análise exploratória, fontes do case, fichas, docs, scripts de download
+analise/
+docs/
+fontes/
+output/
+scripts/
+deploy/
+README.md
+CLAUDE.md
+Dockerfile
+.dockerignore
