@@ -1,24 +1,78 @@
--- Contrato: colunas exatas de `mcp_server/core/tipos.py::Contexto`.
--- Dinheiro em centavos INT64; uma linha por cliente.
-CREATE OR REPLACE TABLE `batalha-time-05-xew3.hackathon_dados.gold_contexto_agente` AS
+CREATE OR REPLACE TABLE
+  `batalha-time-05-xew3.hackathon_dados.gold_contexto_agente`
+AS
+
 SELECT
+  /* Identificação técnica */
   id_usuario,
   data_simulada,
+
+  /* Segmentação histórica */
   grupo_cliente,
   qtd_pedaladas_12m,
+
+  /* Fatura */
   dia_vencimento,
-  CAST(ROUND(fatura_estimada*100) AS INT64) AS fatura_estimada_c,
-  CAST(ROUND(saldo_previsto_vencimento*100) AS INT64) AS saldo_previsto_vencimento_c,
-  CAST(ROUND(renda_mensal_estimada*100) AS INT64) AS renda_mensal_estimada_c,
-  CAST(ROUND(valor_recebimento_tipico*100) AS INT64) AS valor_recebimento_tipico_c,
+
+  CAST(
+    ROUND(fatura_estimada * 100)
+    AS INT64
+  ) AS fatura_estimada_c,
+
+  /*
+    Capacidade estimada do ciclo.
+    Não representa saldo bancário real.
+  */
+  CAST(
+    ROUND(caixa_disponivel_estimado * 100)
+    AS INT64
+  ) AS caixa_disponivel_estimado_c,
+
+  /* Recebimentos */
+  CAST(
+    ROUND(renda_mensal_estimada * 100)
+    AS INT64
+  ) AS renda_mensal_estimada_c,
+
+  CAST(
+    ROUND(valor_recebimento_tipico * 100)
+    AS INT64
+  ) AS valor_recebimento_tipico_c,
+
   dia_recebimento_estimado,
   dias_ate_recebimento,
   confianca_recebimento,
-  CAST(ROUND(folga_mensal_estimada*100) AS INT64) AS folga_mensal_c,
-  CAST(ROUND(valor_faltante*100) AS INT64) AS valor_faltante_c,
+
+  /* Capacidade mensal */
+  CAST(
+    ROUND(folga_mensal_estimada * 100)
+    AS INT64
+  ) AS folga_mensal_c,
+
+  /*
+    Quanto da própria fatura está sem cobertura.
+    Este é o valor adequado para comunicação ao cliente.
+  */
+  CAST(
+    ROUND(valor_faltante_fatura * 100)
+    AS INT64
+  ) AS valor_faltante_fatura_c,
+
   tipo_falta,
-  CAST(ROUND(parcelas_em_curso*100) AS INT64) AS parcelas_em_curso_c,
+
+  /* Compromissos existentes */
+  CAST(
+    ROUND(parcelas_em_curso * 100)
+    AS INT64
+  ) AS parcelas_em_curso_c,
+
+  /* Guardrails */
   publico_vulneravel,
+
+  /* Elegibilidade analítica.
+     Não significa crédito aprovado. */
   elegivel_cobertura_curta,
   elegivel_parcelamento
-FROM `batalha-time-05-xew3.hackathon_dados.gold_elegibilidade`;
+
+FROM
+  `batalha-time-05-xew3.hackathon_dados.gold_elegibilidade`;
