@@ -1,46 +1,90 @@
-# Cabe no Bolso — Camada Analítica
+# Cabe no Bolso --- Camada Analítica
 
-Camada analítica do protótipo **Cabe no Bolso**, responsável por transformar os dados do extrato sintético do hackathon em contexto financeiro estruturado para consumo pelas Tools do agente.
+Camada analítica do protótipo **Cabe no Bolso**, responsável por
+transformar os dados do hackathon em contexto financeiro estruturado
+para consumo pelas Tools do agente.
 
 ## Arquitetura
 
-`Bronze → Silver → Gold → Tools → Agente Cabe no Bolso / ia.i`
+``` text
+Bronze → Silver → Gold → Tools → Agente Cabe no Bolso / ia.i
+```
 
-### Fontes no BigQuery
+### BigQuery
 
-Projeto: `batalha-time-05-xew3`  
-Dataset: `hackathon_dados`
+**Projeto:** `batalha-time-05-xew3`\
+**Dataset:** `hackathon_dados`
 
-- `hackathon_dados.extrato_sintetico` — histórico completo de 2025.
-- `hackathon_dados.cash90_hackathon` — janela D-90 utilizada pelo motor analítico.
+Fontes:
 
-### Silver
+-   `extrato_sintetico` --- histórico completo de 2025.
+-   `cash90_hackathon` --- janela D-90 utilizada pelo motor analítico.
 
-- `silver_cliente_dia`
-- `silver_recebimentos`
-- `silver_historico_fatura_12m`
-- `silver_compromissos`
-- `silver_cartao`
-- `silver_cliente_features`
-- `silver_ciclo_fatura` — projeção de caixa por ciclo de fatura (substitui o snapshot de `saldo_apos`; ver "Projeção de caixa por ciclo" em `docs/regras-negocio.md`)
-- `silver_transacoes_resumo` — compras de cartão por categoria e mês (D-90), consumida por `explicar_fatura`
+## Silver
 
-### Gold
+Tabelas responsáveis pela preparação dos dados e criação das features:
 
-- `gold_capacidade_pagamento`
-- `gold_elegibilidade`
-- `gold_contexto_agente` — contrato exato de `mcp_server/core/tipos.py::Contexto`; dinheiro em centavos INT64; uma linha por cliente
+-   `silver_cliente_dia`
+-   `silver_recebimentos`
+-   `silver_historico_fatura_12m`
+-   `silver_compromissos`
+-   `silver_cartao`
+-   `silver_cliente_features`
+-   `silver_ciclo_fatura`
+-   `silver_transacoes_resumo`
 
-## Princípio de arquitetura
+## Gold
 
-Os cálculos financeiros são realizados deterministicamente na camada analítica. A LLM não deve calcular capacidade financeira; ela recebe contexto estruturado pelas Tools e conduz a conversa.
+Tabelas consumidas pelo motor e pelas Tools:
+
+-   `gold_capacidade_pagamento`
+-   `gold_elegibilidade`
+-   `gold_contexto_agente`
+
+A `gold_contexto_agente` representa o contrato final com o agente, com
+uma linha por cliente e valores monetários em centavos (`INT64`).
+
+## Princípio
+
+Os cálculos financeiros são realizados na camada analítica.
+
+**SQL/Python calculam. A LLM conversa.**
+
+A LLM recebe o contexto estruturado pelas Tools e não deve recalcular
+capacidade financeira ou decidir crédito.
 
 ## Execução
 
-Execute os SQLs pela ordem numérica dentro de `sql/silver/` (01 a 08) e depois `sql/gold/` (01 a 03). `silver_ciclo_fatura` (07) depende de `silver_cartao` (05); `gold_capacidade_pagamento` depende de `silver_cliente_features` (06) e `silver_ciclo_fatura` (07).
+Execute os SQLs nesta ordem:
 
-Os scripts em `sql/checks/*.sql` não fazem parte do pipeline de criação; são consultas de homologação para rodar manualmente contra `gold_contexto_agente` depois da carga (não foram executadas neste ciclo — ver `docs/homologacao.md`).
+``` text
+sql/silver/  → 01 a 08
+sql/gold/    → 01 a 03
+```
 
-O que mudou em relação à camada original, e por quê: `docs/mudancas.md`.
+Depois, utilize:
 
-Consulte `docs/homologacao.md` antes de interpretar as saídas Gold, pois existem limitações conhecidas no MVP.
+``` text
+sql/checks/
+```
+
+para as consultas de homologação.
+
+## Status
+
+-   Silver 01--08: ✅ Homologada
+-   Gold 01--03: ✅ Homologada
+-   1.000 clientes processados
+
+## Documentação
+
+Mais detalhes estão disponíveis em:
+
+-   `docs/arquitetura.md`
+-   `docs/regras-negocio.md`
+-   `docs/homologacao.md`
+-   `docs/mudancas.md`
+
+## Próximo passo
+
+Integrar a camada Gold às Tools e ao agente **Cabe no Bolso**.
