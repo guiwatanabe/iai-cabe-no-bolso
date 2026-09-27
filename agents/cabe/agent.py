@@ -4,6 +4,7 @@ from pathlib import Path
 
 from google.adk.agents import LlmAgent
 from google.adk.apps import App
+from google.adk.models import Gemini
 from google.adk.plugins import ReflectAndRetryToolPlugin
 from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
 from google.genai import types
@@ -28,7 +29,11 @@ bq_tools = McpToolset(
 
 root_agent = LlmAgent(
     name="cabe",
-    model=os.getenv("MODEL", "gemini-3.5-flash"),
+    model=Gemini(
+        model=os.getenv("MODEL", "gemini-3.5-flash"),
+        # Retries 408/429/5xx; short cap so a demo request never hangs long.
+        retry_options=types.HttpRetryOptions(attempts=3, max_delay=8),
+    ),
     instruction=(
         "Você responde em pt-BR usando apenas dados retornados pelas ferramentas.\n"
         "- Cada ferramenta devolve `facts` com ids (f1, f2, ...). Para citar qualquer valor, "

@@ -69,31 +69,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cabe-no-bolso"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "google-adk" },
-    { name = "google-cloud-bigquery" },
-    { name = "mcp" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "google-adk", specifier = ">=2.10.0" },
-    { name = "google-cloud-bigquery", specifier = ">=3.45.2" },
-    { name = "mcp", specifier = ">=2.2.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.1.1" }]
-
-[[package]]
 name = "certifi"
 version = "2026.7.22"
 source = { registry = "https://pypi.org/simple" }
@@ -697,6 +672,31 @@ sdist = { url = "https://files.pythonhosted.org/packages/cd/c4/0e5636363151a2a17
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9b/43/832f631d32e4f1211caa2ba368317739fe71f0b8530e4c9d15dc454bac2a/httpx2_jsfetch-1.0-py3-none-any.whl", hash = "sha256:cb916b707601e69a07721aabc8f3f6659be3a6893bc1ff5c6f9e02241df2da32", size = 6382, upload-time = "2026-08-07T00:13:06.567Z" },
 ]
+
+[[package]]
+name = "iai-cabe-no-bolso"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "google-adk" },
+    { name = "google-cloud-bigquery" },
+    { name = "mcp" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "google-adk", specifier = ">=2.10.0" },
+    { name = "google-cloud-bigquery", specifier = ">=3.45.2" },
+    { name = "mcp", specifier = ">=2.2.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.1.1" }]
 
 [[package]]
 name = "idna"
