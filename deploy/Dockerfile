@@ -25,6 +25,7 @@ COPY config/ /app/config/
 COPY data/extrato_sintetico.csv.gz data/README.md /app/data/
 COPY data/personas/ /app/data/personas/
 COPY demo/ /app/demo/
+COPY docs/prompt-gi-2026-09-27.md /app/docs/prompt-gi-2026-09-27.md
 COPY agent/ /app/agent/
 
 # usuário não root

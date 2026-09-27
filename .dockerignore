@@ -25,6 +25,7 @@ application_default_credentials.json
 tests/
 analise/
 camada_analitica/
-docs/
+docs/*
+!docs/prompt-gi-2026-09-27.md
 fontes/
 output/
