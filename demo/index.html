@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Cabe no Bolso · protótipo do Time 05. Demo navegável: a fatura fechou, a IA mostra se cabe no mês e monta uma saída com custo declarado.">
+  <title>Cabe no Bolso · Protótipo do Time 05</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Fontes do design system (docs/06); se não carregarem, o CSS cai nas fontes do sistema -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <a class="pular" href="#principal">Ir para o conteúdo</a>
+
+  <header class="topo" role="banner">
+    <div class="topo-linha">
+      <span class="marca">Protótipo do Time 05</span>
+      <span id="modo-dados" class="pill" title="Origem das respostas">carregando</span>
+    </div>
+    <div class="topo-linha topo-controles">
+      <label class="seletor">
+        <span class="visualmente-oculto">Persona</span>
+        <select id="persona" aria-label="Persona da demo">
+          <option value="ana">Ana · Escorregão</option>
+          <option value="bruno">Bruno · Rolando</option>
+        </select>
+      </label>
+      <button id="reiniciar" type="button" class="btn btn-fantasma btn-compacto">Reiniciar</button>
+    </div>
+  </header>
+
+  <nav class="abas" aria-label="Telas da demo">
+    <button type="button" class="aba ativa" data-tela="cartao" aria-current="page">Cartão</button>
+    <button type="button" class="aba" data-tela="chat">ia.i</button>
+    <button type="button" class="aba" data-tela="plano">Plano</button>
+    <button type="button" class="aba" data-tela="banca">Banca</button>
+  </nav>
+
+  <main id="principal" tabindex="-1">
+    <section id="tela-cartao" class="tela" aria-labelledby="titulo-cartao">
+      <h1 id="titulo-cartao" class="titulo">Cartão</h1>
+      <div id="cartao-conteudo"></div>
+    </section>
+
+    <section id="tela-pagar" class="tela" hidden aria-labelledby="titulo-pagar">
+      <h1 id="titulo-pagar" class="titulo">Pagar fatura</h1>
+      <div id="pagar-conteudo"></div>
+    </section>
+
+    <section id="tela-chat" class="tela tela-chat" hidden aria-labelledby="titulo-chat">
+      <div class="chat-cabecalho">
+        <h1 id="titulo-chat" class="titulo">ia.i</h1>
+        <p class="sub">Inteligência artificial do banco. A qualquer momento você pode falar com uma pessoa.</p>
+      </div>
+      <div id="chat-mensagens" class="chat-mensagens" aria-live="polite" aria-relevant="additions"></div>
+      <div id="chat-sugestoes" class="chat-sugestoes"></div>
+      <form id="chat-form" class="chat-form" autocomplete="off">
+        <label for="chat-entrada" class="visualmente-oculto">Escreva para o ia.i</label>
+        <input id="chat-entrada" type="text" maxlength="280" placeholder="Escreva para o ia.i" inputmode="text">
+        <button type="submit" class="btn btn-primario btn-compacto">Enviar</button>
+      </form>
+    </section>
+
+    <section id="tela-plano" class="tela" hidden aria-labelledby="titulo-plano">
+      <h1 id="titulo-plano" class="titulo">Plano</h1>
+      <div id="plano-conteudo"></div>
+    </section>
+
+    <section id="tela-banca" class="tela" hidden aria-labelledby="titulo-banca">
+      <h1 id="titulo-banca" class="titulo">Painel para a banca</h1>
+      <div class="sub-abas" role="tablist" aria-label="Painéis">
+        <button type="button" role="tab" class="sub-aba ativa" data-painel="trace" aria-selected="true">Como cheguei aqui</button>
+        <button type="button" role="tab" class="sub-aba" data-painel="juri" aria-selected="false">Júri</button>
+        <button type="button" role="tab" class="sub-aba" data-painel="finops" aria-selected="false">FinOps</button>
+      </div>
+      <div id="banca-conteudo" role="tabpanel"></div>
+    </section>
+  </main>
+
+  <div id="aviso-global" class="aviso-global" role="status" hidden></div>
+
+  <footer class="rodape" role="contentinfo">
+    Protótipo do Time 05. Data, taxas, elegibilidade e meses seguintes são simulados. Nenhum pagamento ou contratação real.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
