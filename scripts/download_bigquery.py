@@ -17,7 +17,7 @@ BASE = (
     "https://bigquery.googleapis.com/bigquery/v2/projects/batalha-time-05-xew3"
     "/datasets/hackathon_dados/tables/extrato_sintetico"
 )
-OUTPUT = Path(__file__).parent / "data" / "extrato_sintetico.csv.gz"
+OUTPUT = Path(__file__).resolve().parent.parent / "data" / "extrato_sintetico.csv.gz"
 
 
 def main():
