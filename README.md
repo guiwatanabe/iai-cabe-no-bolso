@@ -8,13 +8,39 @@ Protótipo do **Time 05** para a Batalha de Agentes Itaú × Google Cloud (26–
 |---|---|
 | Regra de ouro | **Nenhum número que o cliente vê saiu do modelo.** Todo valor, taxa, prazo e percentual vem de `agent/cabe_core` (Python puro, testado) ou de `config/taxas.yaml`, carrega uma `origem`, e um guardião remove da resposta qualquer número sem origem. |
 | Fontes de verdade | `docs/spec-gi-2026-09-27.pdf` (produto) · `docs/prompt-gi-2026-09-27.pdf` e `docs/notas-prompt-gi-2026-09-27.pdf` (prompt do agente, 22 exemplos, prompt do validador; "um agente, dois modos, um validador") · `docs/09-prd.html` (PRD 1.0, spec + correções + camada técnica) · `docs/05-responsible-ai.md` · `docs/06-design-system-ai.md` · `docs/10-contrato-dados-gold.md` · `docs/decisoes.md` |
-| Estado (27/09, 01h) | Núcleo, agente ADK, API, demo e container prontos e verificados juntos: `uv run pytest` 80 verdes (sem chamada ao modelo); golden set 16 de 16 ao vivo com `gemini-3.8-flash` (`agent/evals/resultado-2026-09-27-verificacao.md`); jornada das duas personas percorrida pela API e pelo navegador com 0 números sem origem. Camada analítica do Lucas no BigQuery conferida contra o motor (`camada_analitica/docs/alinhamento-com-o-motor.md`). Feito na madrugada: modo `gi` (prompt da Gi) + checagens em código + validador, 22 de 22 exemplos da Gi ao vivo (`agent/evals/resultado-gi-2026-09-27.md`); `uv run pytest` 131 verdes. Falta rodar o deploy (`deploy/CHECKLIST.md`, 9h) e gerar o QR com a URL final. |
+| Estado (27/09, 03h) | Núcleo, agente ADK, API, demo e container prontos e verificados juntos: `uv run pytest` 190 verdes (sem chamada ao modelo); golden set 16 de 16 ao vivo com `gemini-3.8-flash` (`agent/evals/resultado-2026-09-27-verificacao.md`); jornada das duas personas percorrida pela API e pelo navegador com 0 números sem origem. Camada analítica do Lucas no BigQuery conferida contra o motor (`camada_analitica/docs/alinhamento-com-o-motor.md`). Feito na madrugada: modo `gi` (prompt da Gi) + checagens em código + validador, 22 de 22 exemplos da Gi ao vivo (`agent/evals/resultado-gi-2026-09-27.md`); FinOps com preço confirmado e custo por sessão na tela (`docs/11-finops.md`); bloqueio de injeção, teto de ferramentas por turno e CI (`docs/12-identidade-e-seguranca.md`, `deploy/cloudbuild.yaml`). Última passada ao vivo (02h50, modo `gi`, API local): Bruno e Ana ponta a ponta, US$ 0,021 e US$ 0,020 por sessão, validador 4 de 4 aprovados, 0 números sem origem. Falta rodar o deploy (`deploy/CHECKLIST.md`, 9h) e gerar o QR com a URL final. |
 | Nome | **"Cabe no Bolso"** é a feature: o que o cliente usa dentro do ia.i. **"ia.i, cabe no bolso"** é a chamada: o convite na tela da fatura e a frase do pitch. Sem marca do Itaú na demo ("Protótipo do Time 05"). |
+
+---
+
+## Mapa
+
+Uma linha por pasta; detalhe em §12. Regras para quem codifica com IA: `CLAUDE.md`.
+
+| Pasta | O que tem |
+|---|---|
+| `agent/cabe_core/` | Núcleo determinístico, Python puro sem rede: fatura, capacidade (90 dias), grupo, anomalia, ofertas, travas, acompanhar, painel, `dados.py` (CSV ou BigQuery, mesma interface). Dinheiro em centavos; todo número com `origem`. |
+| `agent/cabe_no_bolso/` | O agente ADK: `agent.py` (um `LlmAgent`), `instruction.md`, `tools.py` (só embrulha `cabe_core`), `callbacks.py` (consentimento, guardião, trace, FinOps), `policy.py`; modo gi (`contexto.py`, `prompt_gi.py`, `agente_gi.py`, `checagens.py`) e `validador.py` (2º `LlmAgent`); `runtime.py` (sessão). |
+| `agent/server/` | FastAPI: `main.py` (`/api/*`, serve `demo/` em `/`), `conversa.py` (modos gi, tools e sem_llm), `sessoes.py`, `limites.py` (rate limit, corpo, concorrência, origem, cabeçalhos), `guardiao.py` (borda). |
+| `agent/evals/` | Golden set (`golden.json`, 16 casos), os 22 exemplos da Gi (`golden_gi.json`), `rodar.py`, resultados ao vivo (`resultado-*.md`). |
+| `agent/tests/` | 190 testes sem modelo: núcleo, policy, guardião, checagens, contexto, validador offline, API, dados, FinOps, robustez (injeção, teto de ferramentas, App/plugins), verificação final. |
+| `demo/` | Página estática mobile-first (`index.html`, `app.js`, `app.css`) e respostas gravadas em `mock/` para o plano B; nenhum número calculado no navegador. |
+| `data/` | `extrato_sintetico.csv.gz` (espelho da base, SHA em `data/README.md`) e `personas/` (gabaritos em centavos). |
+| `config/` | `taxas.yaml` (única fonte de taxas e parâmetros) e `finops.yaml` (preços com fonte, baseline medido, travas). |
+| `camada_analitica/` | Camada medallion do Lucas no BigQuery: SQL silver e gold, docs de regras, homologação e alinhamento com o motor. |
+| `analise/` | Scripts exploratórios que geraram os números de `docs/01` (não são produto). |
+| `deploy/` | `cloudbuild.yaml` (CI: test → build → push → deploy), `deploy.sh` (caminho do dia), `CHECKLIST.md` (ordem e rollback), `deploy_agent_engine.sh` (opcional), `gerar_qr.py`. |
+| `docs/` | `00`–`08` (briefing, evidências, proposta, racional, arquitetura, Responsible AI, design, demo, plano), `09-prd.html`, `10-contrato-dados-gold.md`, `11-finops.md`, `12-identidade-e-seguranca.md`, spec e prompt da Gi, `decisoes.md`, `arquivo/`. |
+| `fontes/` | Case oficial, template da ficha, guia GCP de onboarding, transcrições do time. |
+| `output/` | Fichas e PPTX enviados à organização. |
+
+Na raiz: `Dockerfile` e `.dockerignore` (imagem com contexto na raiz), `.gcloudignore` (o que sobe para o Cloud Build), `CLAUDE.md`.
 
 ---
 
 ## Sumário
 
+0. [Mapa](#mapa)
 1. [O que é e para quem](#1-o-que-é-e-para-quem)
 2. [Como a demo funciona](#2-como-a-demo-funciona)
 3. [Arquitetura](#3-arquitetura)
@@ -198,11 +224,30 @@ O prompt recebe os 90 dias já organizados em blocos (resumo de capacidade, fatu
 
 `InMemorySessionService` do ADK, uma instância (`--min-instances=1 --max-instances=1`), um worker de uvicorn, `--session-affinity`. É um protótipo de 4 minutos com meia dúzia de sessões simultâneas; Firestore ou Cloud SQL adicionariam uma API, uma identidade e um ponto de falha sem ganho para a banca. Custo aceito: um redeploy durante a apresentação perde as sessões (por isso congelamento às 10h45 e botão "Reiniciar" na demo). Em produção, `VertexAiSessionService` ou banco gerenciado, mesma interface.
 
+### Plataforma GCP
+
+Quem é quem, papéis mínimos e ameaças em `docs/12-identidade-e-seguranca.md`; CI em `deploy/cloudbuild.yaml`; custo em `docs/11-finops.md`. O serviço roda como **`squad-agent-sa`** (a service account padrão do Compute não tem `roles/aiplatform.user`); **zero chaves JSON**: build e serviço usam a identidade do próprio ambiente. Padrão de CI (test → build → push → deploy, deploy com a service account de runtime, `logging: CLOUD_LOGGING_ONLY`) e os padrões do agente (modelo em `global` com retry, bloqueio de injeção antes do modelo, teto de tool calls por turno, analytics do agente no BigQuery) trazidos de `guiwatanabe/iai-cabe-no-bolso`, o repositório do Guilherme.
+
+```mermaid
+flowchart LR
+  DEV["Maná (configuração mana-gsoares)<br/>gcloud builds submit · deploy.sh<br/>ADC, zero chaves JSON"] --> CB["Cloud Build<br/>deploy/cloudbuild.yaml<br/>test → build → push → deploy<br/>aprovação manual"]
+  CB --> AR[("Artifact Registry<br/>agentes/cabe-no-bolso:sha")]
+  AR --> CR["Cloud Run · cabe-no-bolso · us-central1<br/>service account squad-agent-sa<br/>max 1 · concurrency 40 · session-affinity"]
+  CR -->|"roles/aiplatform.user · location global"| AP["Agent Platform (Vertex AI)<br/>Gemini 3.8 Flash"]
+  CR -->|"roles/bigquery.jobUser · DADOS=bigquery"| BQ[("BigQuery<br/>hackathon_dados")]
+  CR -->|"reserva: DADOS=csv"| CSV[("CSV na imagem")]
+  CR -.->|"só dev; não montado no serviço"| SM[("Secret Manager<br/>gemini-api-key")]
+  CR -->|"roles/logging.logWriter · metricWriter"| LOG["Cloud Logging + métricas<br/>trace sem PII, p95, chamadas"]
+  BIL["Billing budgets<br/>50 / 80 / 100% (a configurar)"] -.-> CR
+  AE["Agent Engine (opcional)<br/>deploy_agent_engine.sh"] -.-> AP
+  MA["Model Armor (opcional)<br/>roles/modelarmor.user"] -.-> AP
+```
+
 ---
 
 ## 4. Guardrails em camadas
 
-Guardrails próprios do case, em código, não em instrução. Onde cada um vive e como é testado (`uv run pytest`: 136 testes, nenhum chama o modelo; golden set ao vivo em `agent/evals/`).
+Guardrails próprios do case, em código, não em instrução. Onde cada um vive e como é testado (`uv run pytest`: 190 testes, nenhum chama o modelo; golden set ao vivo em `agent/evals/`).
 
 | Camada | Regra | Onde (arquivo : função) | Como é testado |
 |---|---|---|---|
@@ -210,7 +255,9 @@ Guardrails próprios do case, em código, não em instrução. Onde cada um vive
 | **Consentimento** | Nenhuma ferramenta de dados roda sem `state["consentimento"] is True`. Registro com data, versão do texto e escopo; revogável. | `agent/cabe_no_bolso/callbacks.py : before_tool` (bloqueia `analisar_fatura`, `listar_ofertas`, `detalhar_fatura` sem `state["consentimento"]`); `runtime.criar_sessao` lê só a fatura do mês (n=1) e `runtime.painel` só lê o histórico com o sim; `POST /api/consentimento` grava `{data, versao_texto, escopo}` | Golden 5 ao vivo: aprovado; `test_guardiao.py` (before_tool bloqueia as 3 ferramentas e libera com o sim; revogar apaga a análise); `test_api.py` (sem o sim o trace não tem `capacidade.motor`, `avancar-mes` dá 403, painel sem histórico) |
 | **Política de crédito** | Parcela ≤ folga · custo total < continuar no rotativo no mesmo horizonte (14% a.m., encargos limitados a 100%) · só produtos liberados pelo serviço de crédito · sem taxa configurada o produto não existe · cobertura só para Escorregão, falta pontual, ≤ 25 dias e se o recebimento cobre · parcelamento 1× em 12 meses · cobertura só com conta de volta ao positivo · reincidência em 3 meses bloqueia e chama humano · No limite e renda irregular nunca recebem crédito automático · consignado INSS só com confirmação humana · opções da mais barata para a mais cara | `agent/cabe_core/travas.py : cabe_no_mes, mais_barato_que_rotativo, liberado, taxa_disponivel, grupo_permite, cobre_ate_recebimento, parcelamento_disponivel, cobertura_disponivel, sem_reincidencia, perfil_permite, requer_confirmacao_humana, custo_rotativo`; aplicadas em `agent/cabe_core/ofertas.py : montar` (o que não passa vai para `descartadas` com os bloqueios); `agent/cabe_no_bolso/policy.py` reexporta | `agent/tests/test_policy.py` (15 testes): `test_parcela_nao_cabe_nenhuma_opcao`, `test_no_limite_sem_credito_automatico`, `test_so_ofertas_liberadas`, `test_taxa_ausente_remove_produto`, `test_cobertura_so_ate_25_dias_e_se_o_recebimento_cobre`, `test_segundo_parcelamento_em_12_meses_bloqueado`, `test_reincidencia_apos_aceite_chama_humano`, `test_renda_irregular_trata_como_no_limite`, `test_consignado_inss_exige_confirmacao_humana`, `test_custo_rotativo_com_teto_de_100_por_cento`, `test_grupo_como_trava`, `test_fatura_cabe_so_aviso`, `test_sem_prestamista_e_sem_produto_fora_do_plano` |
 | **Taxas** | Taxas só de `config/taxas.yaml`, com fonte, data e status. O LLM nunca estima taxa. `status: conferir` entra rotulada "ilustrativa". Prestamista desligado (`permitir_prestamista: false`). | `agent/cabe_core/config.py : carregar_taxas, produtos_com_taxa`; `agent/cabe_no_bolso/policy.py : registro_taxas, produtos_disponiveis`; `agent/cabe_core/ofertas.py : _rotulo_taxa` | `test_taxa_ausente_remove_produto`, `test_registro_taxas_e_personas`; Golden 6 ("qual a taxa?" sem config → não sabe) |
-| **Modelo** | Instrução com papel, tom (`docs/06`) e regra de ouro ("todo número vem de ferramenta; se não tiver, pergunte ou diga que não sabe"); safety settings do Gemini; temperatura baixa; nome do modelo em variável. | `agent/cabe_no_bolso/instruction.md`; `agent.py : criar_agente, config_geracao` (temperatura 0,2, `max_output_tokens` 2048, `thinking_level` LOW, safety `BLOCK_MEDIUM_AND_ABOVE` nas 4 categorias); `agent/.env.example : MODELO, MODELO_RESERVA` | Golden 6, 9, 10 ao vivo: aprovados |
+| **Modelo** | Instrução com papel, tom (`docs/06`) e regra de ouro ("todo número vem de ferramenta; se não tiver, pergunte ou diga que não sabe"); safety settings do Gemini; temperatura baixa; nome do modelo em variável. Modelo como objeto `Gemini(model, client_kwargs={"location": "global"}, retry_options=HttpRetryOptions(attempts=3, max_delay=8))` nos três agentes (tools, gi, validador): endpoint `global` fixo (o Agent Engine sobrescreve `GOOGLE_CLOUD_LOCATION`) e 3 tentativas curtas em 408/429/5xx; o agente vai num `App(name, root_agent, plugins=[ReflectAndRetryToolPlugin(max_retries=2), BigQueryAgentAnalyticsPlugin se BQ_ANALYTICS_DATASET])`. Padrão trazido de `guiwatanabe/iai-cabe-no-bolso` (Guilherme). | `agent/cabe_no_bolso/instruction.md`; `agent.py : criar_agente, config_geracao, modelo_gemini, criar_app, plugins` (temperatura 0,2, `max_output_tokens` 2048, thinking mínimo, safety `BLOCK_MEDIUM_AND_ABOVE` nas 4 categorias); `agent/.env.example : MODELO, MODELO_RESERVA, BQ_ANALYTICS_DATASET` | Golden 6, 9, 10 ao vivo: aprovados; `test_robustez.py` (objeto Gemini com retentativas e `global` só no Vertex; App com plugins; runner recebe o App) |
+| **Entrada (injeção)** | Regex de injeção em PT e EN sobre a última mensagem do usuário ("ignore as instruções", "ignore all previous instructions", "system prompt", "mostre suas instruções", `drop table`, "agora você é…"): o modelo **nem é chamado**; volta uma recusa fixa em código no formato do modo (texto no `tools`, JSON no `gi`), o validador não roda (0 chamadas) e o bloqueio vai para o trace, o log e o painel (`entradas_bloqueadas`). Padrão `block_unsafe_input` trazido de `guiwatanabe/iai-cabe-no-bolso` (Guilherme). | `agent/cabe_no_bolso/callbacks.py : before_model, bloquear_entrada_insegura, detectar_injecao, PADROES_INJECAO`; `runtime._turno_gi` e `runtime.conversar_async` (validador não aplicado) | `test_robustez.py` (10 injeções PT/EN bloqueadas, 10 mensagens legítimas + todas as ações passam; recusa em texto e em JSON; ponta a ponta nos dois modos com 0 chamadas ao modelo e ao validador); Golden 8 ao vivo (injeção via descrição de transação) |
+| **Ferramentas (teto por turno)** | No máximo 8 chamadas de ferramenta por turno (`config/finops.yaml : travas.tool_calls_por_turno_max`): a 9ª não roda, o agente responde com o que já tem e o bloqueio vai para o trace. Contador em `state["temp:tool_calls"]`, que o ADK descarta ao fim da invocação. Padrão `limit_tool_calls` trazido de `guiwatanabe/iai-cabe-no-bolso` (Guilherme). | `agent/cabe_no_bolso/callbacks.py : before_tool`; `agent/cabe_core/finops.py : teto_tool_calls_por_turno` | `test_robustez.py` (9ª chamada bloqueada, teto lido do YAML/env, contador zera no turno seguinte) |
 | **Saída (guardião)** | Todo número da resposta é conferido contra `state["numeros_validados"]`; sem origem → removido e a resposta pede confirmação. Lista negra: seguro, prestamista, cashback, pontos, cartão novo, investimento, capitalização. "sujeito a" reescrito para "depende de aprovação". Termos de julgamento barrados. `guardiao.removidos[]` e `termos_bloqueados[]` expostos na API. | `agent/cabe_no_bolso/callbacks.py : after_model, guardiao_texto` (também confere contagens: "10 parcelas", "7 dias", "dia 20"; aceita constantes de `config/taxas.yaml` com origem `config:taxas.yaml:<chave>`); segunda passada na borda em `agent/server/guardiao.py : conferir_resposta`; lista em `agent/cabe_no_bolso/policy.py : termos_bloqueados`; texto em `config/taxas.yaml : texto_condicao` | `test_guardiao.py` (18 testes: número sem origem removido, formatos de R$, "sujeito a" reescrito, lista negra, julgamento); Golden 1, 7 e mentora 3, 4 ao vivo: aprovados; contagem de removidos visível na aba FinOps da demo |
 | **Checagens em código (modo `gi` e modo `tools`)** | Antes do validador, o que tem resposta certa ou errada: JSON válido no formato do modo (regenera); cada item de `numeros_citados` existe no contexto e todo número do texto está em `numeros_citados` (regenera; 2ª falha → mensagem segura; no modo `tools` continua o guardião); `oferta_id` existe em `ofertas_liberadas` (mensagem segura); sem consentimento a ação não é `mostrar_oferta` nem `abrir_resumo_contrato` (mensagem segura); insight ≤ 160 caracteres e conversa ≤ 3 mensagens (regenera); termos proibidos do prompt + "sujeito a" + seguro/prestamista/cashback/pontos/cartão novo/investimento (regenera); 1 mensagem proativa por dia (não envia) | `agent/cabe_no_bolso/checagens.py`; contexto e índice de números em `agent/cabe_no_bolso/contexto.py`; prompt e agente do modo gi em `agent/cabe_no_bolso/prompt_gi.py`, `agente_gi.py` | `agent/tests/test_checagens.py` (11 testes: número fora do contexto, oferta inexistente, ação sem consentimento, insight > 160, termo proibido, JSON inválido, limite de contato, mensagem segura só com números do contexto) e `test_contexto.py` (11: contexto da Ana e do Bruno com os números do núcleo formatados e com origem); 0 falhas finais nas 33 saídas dos exemplos da Gi ao vivo; tabela em `docs/notas-prompt-gi-2026-09-27.md` |
 | **Validador** | Segundo `LlmAgent` com o prompt do validador da Gi (R1 números, R2 crédito liberado, R3 consentimento, R4 termos, R5 histórico e julgamento, R6 contratação e promessas, R7 insistência, R8 proteção, R9 escopo, R10 dados sensíveis, R11 formato, R12 tom). Recebe contexto, diretrizes, últimas mensagens e a saída; devolve `aprovado | violacoes | orientacao`. Bloqueante → regenera uma vez com as violações; reprovado de novo, ou qualquer R8 → mensagem segura. Toda reprovação vai para o trace e para o painel. Modelo em `MODELO_VALIDADOR` (padrão = `MODELO`). Ativo nos dois modos (`validador.ativo: true`). Exceção (27/09 02h): no modo tools, o turno em que a ferramenta `confirmar_plano` rodou usa o texto fixo em código do `confirmar` do modo gi e não passa pelo validador: o texto do modelo citava números do núcleo que o contexto da Gi não expõe (teto do cartão) e caía por R1/R19, virando mensagem segura depois do plano já registrado | `agent/cabe_no_bolso/validador.py`; fluxo em `runtime._turno_gi` (modo gi) e `runtime._validar_modo_tools` (modo tools); `docs/prompt-gi-2026-09-27.md` (bloco do validador) | 22 exemplos da Gi ao vivo, 22/22 aprovados (33 vereditos, 5 reprovações seguidas de regeneração e aprovação; `agent/evals/resultado-gi-2026-09-27.md`); `agent/tests/test_validador_offline.py` (13 testes com modelo e validador falsos: regeneração única, reprovado de novo → mensagem segura, R8 → pessoa, validador indisponível não derruba a conversa, modo tools) |
@@ -291,7 +338,7 @@ Frase para o pitch: *"Nenhum número que o cliente vê saiu do modelo: tudo vem 
 
 **22 de 22 exemplos da Gi aprovados** com o validador ligado (19 na primeira passada; I3, I5 e C2 reprovaram por um erro no contexto ilustrativo do Bruno, parcela maior que a folga, e passaram depois da correção). 34 chamadas ao agente e 33 ao validador; latência do agente p50 3,3 s / p95 4,5 s; validador p50 2,8 s / p95 3,9 s; nenhum número fora do contexto chegou ao texto. Tabelas completas, chamada a chamada, em `agent/evals/resultado-gi-2026-09-27.md`.
 
-### Testes sem modelo (`uv run pytest`, 131 verdes, ~3 s, sobre o CSV)
+### Testes sem modelo (`uv run pytest`, 190 verdes, ~2 s, sobre o CSV)
 
 `agent/tests/test_core.py` reproduz o gabarito `data/personas/3e7d20b2_grupo_b.json` mês a mês em centavos (fatura, pago, modo, juros, fixos, cartão, renda; 12 meses idênticos), a reconstrução da fatura por modo, os grupos por faixa, anomalia de renda e gasto, o fator 1,33 só nas projeções, 3 ciclos de acompanhamento encerrando para as duas personas, o painel com o comparativo real de 2025, dados indisponíveis, e que **todo número devolvido tem origem**. `test_policy.py` cobre as travas uma a uma. `test_guardiao.py` cobre o guardião, o consentimento em `before_tool`, as ferramentas ponta a ponta e o runtime (sessão → sim → 3 ciclos → painel) com um modelo falso. `test_api.py` percorre a API inteira em `MODO_CONVERSA=sem_llm` (jornada das duas personas, cenário 3, erros, limites, cabeçalhos, queda do modelo para a reserva determinística). `analise/persona_export.py` reproduz o gabarito fora do pacote.
 
@@ -310,7 +357,20 @@ Frase para o pitch: *"Nenhum número que o cliente vê saiu do modelo: tudo vem 
 
 ## 7. FinOps
 
-Orçamento do grupo: US$ 1.000 em créditos, compartilhado com Antigravity e Gemini CLI. Decisões que mantêm o custo baixo e mensurável:
+Orçamento do grupo: US$ 1.000 em créditos, compartilhado com Antigravity e Gemini CLI. Princípio: custo por conversa é métrica de produto. Preços com fonte e data, piloto e travas vivem em **`config/finops.yaml`**; o custo é sempre `tokens × preço do YAML`, calculado em código (`agent/cabe_core/finops.py`), separado por papel (agente e validador) e exposto no painel da banca, no log e nos evals. Detalhe, modelo de custo e "como a banca vê": **`docs/11-finops.md`**.
+
+**Custo medido** (`gemini-3.8-flash` via Vertex `global`, preço introdutório US$ 0,75 / 3,75 por milhão de tokens, confirmado na [página oficial](https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing) em 27/09):
+
+| O que | Chamadas | Tokens entrada / saída | Latência p50 / p95 | Custo (USD) | Fonte |
+|---|---:|---:|---:|---:|---|
+| Sessão do Bruno, modo `tools`, sem validador | 3 | 15.483 / 352 | 2,7 s / 4,0 s | **0,0129** | `agent/evals/resultado-2026-09-27-verificacao.md` |
+| Sessão da Ana, modo `tools`, sem validador | 3 | 14.618 / 248 | 2,7 s / 3,4 s | **0,0119** | idem |
+| Turno no modo `gi` (1 agente + 1 validador) | 2 | ~12.700 / ~200 + ~3.200 / ~30 | agente 3,7 s · validador 2,4 s | **0,0096 a 0,0105** (0,0075 + 0,0026) | `agent/evals/resultado-finops-2026-09-27.md` |
+| Turno com 1 regeneração pedida pelo validador | 3 | 22.078 / 224 | — | 0,0174 | idem (gs07) |
+| Jornada da demo no modo `gi` (pergunta do PIX + oferta; confirmar e 3 meses em código) | 4 | — | 6,8 a 8,2 s por turno de parede | **≈ 0,021 por sessão** | derivado dos dois acima |
+| Projeção · 384 clientes do piloto × 1 conversa por ciclo (só multiplicação, rótulo "projeção") | — | — | — | **≈ 8 por ciclo de fatura** (≈ 16 com o preço de 2027) | `config/finops.yaml: piloto` |
+
+Decisões que mantêm o custo baixo e mensurável:
 
 | Decisão | Como | Onde |
 |---|---|---|
@@ -321,9 +381,12 @@ Orçamento do grupo: US$ 1.000 em créditos, compartilhado com Antigravity e Gem
 | BigQuery uma vez por cliente por sessão | `FonteBigQuery` lê o extrato do cliente uma vez e agrega em Python (nunca em loop); `cash90_hackathon` (D-90) quando a janela cabe; CSV em dev, testes e reserva. A gold do Lucas (agregada) entra quando alinhada. Conferência da gold feita com 4 consultas, resultado em cache | `agent/cabe_core/dados.py : FonteBigQuery`, `camada_analitica/`, `analise/confere_gold_lucas.py` |
 | Cloud Run escala a zero fora da demo | No dia, `--min-instances=1 --max-instances=1 --concurrency=40 --cpu=1 --memory=1Gi` (sessão em memória; sem cold start na frente da banca); depois, `min=0` | `deploy/deploy.sh` |
 | Reserva sem custo de modelo | Se o modelo falhar ou estourar cota, a sessão cai para `sem_llm` (mesma jornada, só `cabe_core`, zero tokens) e a demo estática ainda tem as respostas gravadas (`?mock=1`) | `agent/server/conversa.py`; `demo/mock/*.json` |
-| Alertas de orçamento | 50 / 80 / 100% do crédito do grupo (Cloud Billing → Monitoring) | Console GCP **(a configurar)** |
-| Medição na tela | Chamadas ao modelo, tokens de entrada e saída, latência p50/p95 por sessão, gravados no trace e expostos na aba FinOps do painel da banca | `agent/cabe_no_bolso/callbacks.py : after_model, p50_p95`; `agent/cabe_no_bolso/runtime.py : finops_de`; `demo/app.js` (aba FinOps) |
-| Custo em R$ só com fonte | `preco_modelo: null` em `config/taxas.yaml` → `custo_estimado: null` e a tela diz DESCONHECIDO. Não inventamos preço de token; quem tiver a fonte do preço do modelo do evento preenche o YAML | `config/taxas.yaml` |
+| Teto por sessão e por turno | 12 chamadas ao modelo por sessão (acima, mensagem segura sem chamar o modelo, registrada no trace e no painel) e 8 ferramentas por turno no `before_tool` (padrão `limit_tool_calls` trazido de guiwatanabe/iai-cabe-no-bolso) | `config/finops.yaml: travas`; `agent/server/conversa.py : _resposta_teto`; `agent/cabe_no_bolso/callbacks.py : before_tool`; `test_finops.py` |
+| Log e métricas de custo | Uma linha JSON por papel por turno no stdout (`evento: turno`: `sessao_id`, `papel`, `modelo`, tokens, `latencia_ms`, `custo_usd`, `validador_aprovado`, `regeneracoes`, `mensagem_segura`; sem PII nem extrato) → `jsonPayload` no Cloud Logging; métricas baseadas em log para custo diário, latência p95, mensagens seguras, tokens e regenerações | `agent/server/finops.py`; `deploy/metricas.sh` |
+| Alertas de orçamento | 50 / 80 / 100% do crédito do grupo em Cloud Billing (`gcloud billing budgets create`, exige papel na conta de faturamento; não executado na madrugada) | `deploy/orcamento.sh`; `config/finops.yaml: travas.alertas_orcamento_pct` |
+| Medição na tela | Chamadas ao modelo, tokens de entrada e saída (`usage_metadata`), latência p50/p95 por sessão, gravados no trace e expostos na aba FinOps do painel da banca. **Por papel**: `finops.chamadas_por_papel` separa agente, validador, regeneração e insight (chamadas, tokens, latências, modelo e custo de cada um); `runtime.custo_estimado(finops)` lê `config/finops.yaml` e devolve `{usd, preco_fonte, por_papel}` (só preço com `status: confirmada`; senão `null` com o motivo) | `agent/cabe_no_bolso/callbacks.py : after_model, somar_por_papel, p50_p95`; `agent/cabe_no_bolso/runtime.py : custo_estimado, finops_de, _finops_turno`; `agent/cabe_core/finops.py`; `demo/app.js` (aba FinOps) |
+| Custo em USD só com preço confirmado | `config/finops.yaml` traz o preço de cada modelo com `fonte`, `vigencia` e `status`; o painel mostra `custo_estimado`, custo por papel, custo por turno, a fonte do preço e a projeção para o piloto (`projecao_piloto`, rótulo "projeção"). Modelo sem `status: confirmada` → custo `null` e a tela diz "preço a conferir"; nunca se inventa preço. Sem LLM ou nas respostas gravadas, US$ 0 com a mesma fonte. BRL só com câmbio com fonte (não há) | `config/finops.yaml`; `agent/cabe_core/finops.py`; `agent/server/finops.py : resumo_sessao`; `demo/app.js : painelFinops`; `agent/evals/rodar.py` (custo por caso e por rodada) |
+| Latência no palco: duas alavancas | `MODELO_VALIDADOR=gemini-2.5-flash` (preço confirmado US$ 0,30 / 2,50) ou `VALIDADOR_ATIVO=false` (ficam checagens em código + guardião); medido: 6,8–8,2 s por turno com validador, 16,6 s com regeneração | `deploy/deploy.sh`; `agent/.env.example`; `docs/11-finops.md` §7 |
 
 ---
 
@@ -331,11 +394,12 @@ Orçamento do grupo: US$ 1.000 em créditos, compartilhado com Antigravity e Gem
 
 | Item | Como |
 |---|---|
-| Identidade | Cloud Run roda com a service account do runtime e ADC; o Gemini é chamado via Vertex AI com essa identidade. **Nenhuma chave JSON de service account** no repositório nem na imagem. Localmente, `gcloud config configurations activate mana-gsoares` + ADC. |
+| Identidade | Cloud Run roda como **`squad-agent-sa@batalha-time-05-xew3.iam.gserviceaccount.com`** (`roles/aiplatform.user`, `bigquery.jobUser`, `logging.logWriter`, `monitoring.metricWriter`, `secretmanager.secretAccessor`; conferido em 27/09 01h) e chama o Gemini via Vertex AI com essa identidade (ADC). A service account padrão do Compute **não** tem `aiplatform.user` e não é usada. **Zero chaves JSON** no repositório, na imagem ou em `.env`: localmente, ADC do usuário (`gcloud config configurations activate mana-gsoares`) ou impersonação sem chave (`gcloud auth application-default login --impersonate-service-account=squad-agent-sa@...`). Quem é quem, papéis mínimos e o que fazer com uma chave distribuída: `docs/12-identidade-e-seguranca.md`. |
 | Segredos | `GOOGLE_API_KEY` só em dev, se não usar Vertex; em produção, Secret Manager (`gemini-api-key`) ou ADC. `.env`, `*.key`, `service-account*.json` e `application_default_credentials.json` estão no `.gitignore`. |
 | Concorrência e DoS | `--max-instances=1 --concurrency=40 --timeout=120` na demo; na API (`agent/server/limites.py`, ASGI puro, só em `/api`): rate limit por IP em janela deslizante (`RATE_LIMIT_POR_MINUTO=60`, 429 com `Retry-After`; estáticos fora do limite), corpo máximo (`MAX_CORPO_BYTES=16384`, 413; POST sem `Content-Length` → 411), concorrência (`MAX_CONCORRENCIA=40`, 503), texto do cliente ≤ 500 caracteres, sessões com TTL de 2 h e teto de 500. `--allow-unauthenticated` só porque a banca acessa por QR sem login. |
 | Origem e cabeçalhos | `Origin` de outro host ou `Sec-Fetch-Site: cross-site` → 403 (nenhum cabeçalho CORS é emitido); `Cache-Control: no-store` em `/api`; CSP (self + fontes do Google), `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, COOP, HSTS em https; `/docs`, `/redoc` e `/openapi.json` desligados. |
-| Modelo | Vertex AI com ADC (sem chave no repo nem na imagem); safety settings `BLOCK_MEDIUM_AND_ABOVE`; `max_output_tokens` e temperatura fixos; nome do modelo só em variável. Qualquer erro do modelo rebaixa a sessão para `sem_llm` sem expor a mensagem de erro ao cliente. |
+| Modelo | Vertex AI com ADC (sem chave no repo nem na imagem); endpoint `global` fixo no objeto `Gemini` com 3 retentativas curtas (408/429/5xx, `max_delay=8`); safety settings `BLOCK_MEDIUM_AND_ABOVE`; `max_output_tokens` e temperatura fixos; nome do modelo só em variável. Qualquer erro do modelo rebaixa a sessão para `sem_llm` sem expor a mensagem de erro ao cliente. |
+| Injeção de prompt | `before_model` bloqueia padrões de injeção (PT/EN) antes de chamar o modelo e devolve recusa fixa no formato do modo; `before_tool` limita a 8 chamadas de ferramenta por turno (`temp:`); o `ReflectAndRetryToolPlugin` devolve ao modelo o erro de uma ferramenta que levantou exceção (2 tentativas) antes de a sessão cair para `sem_llm`. Padrões trazidos de `guiwatanabe/iai-cabe-no-bolso` (Guilherme). O texto do cliente nunca vai ao log: só o rótulo do padrão. |
 | Dados | Base sintética, sem PII (`data/README.md`). Em produção: minimização (90 dias), retenção curta, consentimento por finalidade. |
 | Consentimento registrado | `POST /api/consentimento` grava data, versão do texto e escopo; revogável a qualquer momento; sem o sim, `before_tool_callback` bloqueia toda ferramenta de dados. |
 | Entrada é dado | Descrições de transação e mensagens do cliente nunca são instruções; campos da base são sanitizados antes do prompt; o guardião não deixa passar número inventado. |
@@ -381,7 +445,7 @@ shasum -a 256 data/extrato_sintetico.csv.gz        # conferir com data/README.md
 cd agent
 uv sync                                            # google-adk, fastapi, pandas, pyyaml, pytest
 cp .env.example .env                               # Vertex + ADC; DADOS=csv
-uv run pytest                                      # 136 testes, ~2 s, tudo sobre o CSV, sem chamar o modelo
+uv run pytest                                      # 190 testes, ~2 s, tudo sobre o CSV, sem chamar o modelo
 uv run pytest tests/test_core.py::test_bruno_202509_rolando_parcelamento   # um teste
 
 # uso direto do núcleo, sem LLM (a partir de agent/)
@@ -413,7 +477,7 @@ node --check demo/app.js                           # sintaxe
 python3 analise/persona_export.py 3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b --saida /tmp/bruno.json
 ```
 
-Variáveis (`agent/.env.example`): `GOOGLE_GENAI_USE_VERTEXAI=TRUE`, `GOOGLE_CLOUD_PROJECT=batalha-time-05-xew3`, `GOOGLE_CLOUD_LOCATION=global`, `MODELO=gemini-3.8-flash`, `MODELO_RESERVA=gemini-2.5-flash`, `MODELO_VALIDADOR` (padrão = `MODELO`), `DADOS=csv|bigquery`, `MODO_CONVERSA` (`tools` | `gi` | `sem_llm`; o padrão e o porquê no próprio `.env.example`); opcionais `RAIZ`, `TAXAS`, `BIGQUERY_TABELA`, `BIGQUERY_TABELA_90D` + `BIGQUERY_JANELA_90D` (`AAAAMM-AAAAMM`), `RATE_LIMIT_POR_MINUTO` (120 no deploy), `MAX_CONCORRENCIA`, `MAX_CORPO_BYTES`, `SESSAO_TTL_S`, `PENSAMENTO`, `TEMPERATURA`, `MAX_TOKENS_SAIDA`, `LIMITE_CHAMADAS`, `VALIDADOR_ATIVO`, `INSIGHT_COM_LLM` (modo gi: card do cartão pelo modelo, +1 chamada do agente e +1 do validador por sessão), `CHAMADAS_LLM_POR_SESSAO_MAX` (teto por sessão; padrão em `config/finops.yaml`).
+Variáveis (`agent/.env.example`): `GOOGLE_GENAI_USE_VERTEXAI=TRUE`, `GOOGLE_CLOUD_PROJECT=batalha-time-05-xew3`, `GOOGLE_CLOUD_LOCATION=global`, `MODELO=gemini-3.8-flash`, `MODELO_RESERVA=gemini-2.5-flash`, `MODELO_VALIDADOR` (padrão = `MODELO`), `DADOS=csv|bigquery`, `MODO_CONVERSA` (`tools` | `gi` | `sem_llm`; o padrão e o porquê no próprio `.env.example`); opcionais `RAIZ`, `TAXAS`, `BIGQUERY_TABELA`, `BIGQUERY_TABELA_90D` + `BIGQUERY_JANELA_90D` (`AAAAMM-AAAAMM`), `RATE_LIMIT_POR_MINUTO` (120 no deploy), `MAX_CONCORRENCIA`, `MAX_CORPO_BYTES`, `SESSAO_TTL_S`, `PENSAMENTO`, `TEMPERATURA`, `MAX_TOKENS_SAIDA`, `LIMITE_CHAMADAS`, `VALIDADOR_ATIVO`, `INSIGHT_COM_LLM` (modo gi: card do cartão pelo modelo, +1 chamada do agente e +1 do validador por sessão), `CHAMADAS_LLM_POR_SESSAO_MAX` (teto por sessão; padrão em `config/finops.yaml`), `TOOL_CALLS_POR_TURNO_MAX` (teto de ferramentas por turno), `LOG_TURNOS` (log JSON por turno; padrão `true`), `FINOPS` (caminho de `config/finops.yaml`).
 
 ```bash
 # conferir a gold do Lucas contra o motor (4 consultas ao BigQuery só com --atualizar; senão usa o cache; --sem-bigquery só o motor)
@@ -424,26 +488,33 @@ CLOUDSDK_ACTIVE_CONFIG_NAME=mana-gsoares uv run --project agent --with google-cl
 
 ## 11. Deploy
 
-`Dockerfile` na raiz, `deploy/deploy.sh` e a ordem do dia em **`deploy/CHECKLIST.md`** (9h → congelar às 10h45). **O deploy ainda não foi executado**; o `docker build` local não foi testado porque o daemon não estava disponível. Conferido em 27/09 01h só por metadados: APIs `run`, `cloudbuild`, `artifactregistry`, `aiplatform`, `bigquery`, `secretmanager` e `logging` ligadas; repositório `agentes` existe; nenhum serviço Cloud Run ainda; service accounts disponíveis `602056186697-compute@developer.gserviceaccount.com` (padrão) e `squad-agent-sa@batalha-time-05-xew3.iam.gserviceaccount.com`. O papel `roles/aiplatform.user` na service account de runtime **não foi conferido** (comando no checklist).
+`Dockerfile` na raiz, `deploy/deploy.sh` (caminho do dia), `deploy/cloudbuild.yaml` (CI) e a ordem do dia com rollback em **`deploy/CHECKLIST.md`** (9h → congelar às 10h45). **O deploy ainda não foi executado**; o `docker build` local não foi testado porque o daemon não estava disponível. Conferido em 27/09 01h só por metadados: APIs `run`, `cloudbuild`, `artifactregistry`, `aiplatform`, `bigquery`, `secretmanager` e `logging` ligadas; repositório `agentes` existe (com a imagem `cabe-no-bolso:smoke-a27a076`); nenhum serviço Cloud Run ainda; **`squad-agent-sa@batalha-time-05-xew3.iam.gserviceaccount.com` é a service account de runtime**, com `roles/aiplatform.user`, `bigquery.jobUser`, `logging.logWriter`, `monitoring.metricWriter` e `secretmanager.secretAccessor` (a padrão do Compute não tem `aiplatform.user` e não é usada). Os dois scripts passam `--service-account`; `MIN_INSTANCES` (padrão 1 no dia) e `_MIN_INSTANCES` (padrão 0 no CI) controlam a instância mínima. Identidade e papéis: `docs/12-identidade-e-seguranca.md`.
 
 - Imagem com contexto na **raiz** (copia `config/`, `data/extrato_sintetico.csv.gz`, `data/personas/`, `demo/` e `agent/`), `python:3.11-slim` + `uv 0.11.7` fixo + `uv sync --frozen --no-dev`, usuário não root, um worker de uvicorn na porta `$PORT`.
 - Cloud Build → Artifact Registry `agentes` → Cloud Run `cabe-no-bolso` (`us-central1`), tudo em `deploy/deploy.sh`:
 
 ```bash
-# pré-requisitos: APIs run, cloudbuild, artifactregistry e aiplatform habilitadas; repositório "agentes" criado;
-# service account do Cloud Run com roles/aiplatform.user. A configuração "default" do gcloud é de outro cliente.
-CLOUDSDK_ACTIVE_CONFIG_NAME=mana-gsoares ./deploy/deploy.sh
+# pré-requisitos (conferidos em 27/09 01h): APIs run, cloudbuild, artifactregistry e aiplatform habilitadas; repositório "agentes";
+# squad-agent-sa com roles/aiplatform.user. A configuração "default" do gcloud é de outro cliente. Zero chaves JSON.
+CLOUDSDK_ACTIVE_CONFIG_NAME=mana-gsoares ./deploy/deploy.sh                       # A: caminho do dia (credenciais do Maná)
 # = gcloud builds submit --tag us-central1-docker.pkg.dev/batalha-time-05-xew3/agentes/cabe-no-bolso:<git sha> .
 #   gcloud run deploy cabe-no-bolso --region=us-central1 --allow-unauthenticated \
-#     --min-instances=1 --max-instances=1 --session-affinity --concurrency=40 --cpu=1 --memory=1Gi --timeout=120 --cpu-boost \
+#     --service-account=squad-agent-sa@batalha-time-05-xew3.iam.gserviceaccount.com \
+#     --min-instances=$MIN_INSTANCES --max-instances=1 --session-affinity --concurrency=40 --cpu=1 --memory=1Gi --timeout=120 --cpu-boost \
 #     --set-env-vars GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_LOCATION=global,GOOGLE_CLOUD_PROJECT=batalha-time-05-xew3,DADOS=csv,\
 #       BIGQUERY_TABELA=...,MODELO=gemini-3.8-flash,MODELO_VALIDADOR=gemini-3.8-flash,MODO_CONVERSA=<de agent/.env.example>,\
 #       RATE_LIMIT_POR_MINUTO=120,MAX_CONCORRENCIA=40,RAIZ=/app
-#   imprime a URL, faz curl em /api/saude e gera deploy/qr-cabe-no-bolso.png
+#   imprime a URL, faz curl em /api/saude, gera deploy/qr-cabe-no-bolso.png e mostra o comando de rollback
+gcloud builds submit --config deploy/cloudbuild.yaml \
+  --substitutions=_TAG=$(git rev-parse --short HEAD),_MIN_INSTANCES=1 .          # B: CI test → build → push → deploy (mesmos flags)
 MODO_CONVERSA=sem_llm ./deploy/deploy.sh                                          # plano B: zero chamadas ao modelo
+MIN_INSTANCES=0 ./deploy/deploy.sh                                                # fora da demo: escala a zero
+gcloud run services update-traffic cabe-no-bolso --region us-central1 --to-revisions=<revisão-anterior>=100   # rollback (zera sessões)
 uv run --project agent python deploy/gerar_qr.py https://URL-final --persona ana   # QR avulso
 ./deploy/deploy_agent_engine.sh                                                    # OPCIONAL: só o agente na Agent Platform (adk deploy agent_engine)
 ```
+
+O gatilho por push do Cloud Build fica para depois do evento (exige conectar o repositório GitHub ao projeto); até lá o CI é disparado à mão com o comando acima e, quando o gatilho existir, com "Exigir aprovação" ligado.
 
 - Depois do deploy: `curl <url>/api/saude` deve responder `{ok: true, dados: "csv", modelo: "gemini-3.8-flash", modo: "llm"}`; fumaça pela API e no celular (Ana e Bruno, "como cheguei aqui", 0 números sem origem); gerar o QR com a URL final; congelamento às 10h45 (um redeploy zera as sessões em memória). Se o Cloud Run falhar: `MODO_CONVERSA=sem_llm` por env, ou API local por túnel, ou a demo estática com `?mock=1`; último recurso, vídeo de 60 s da jornada. Depois do pitch, `--min-instances=0`.
 
@@ -458,7 +529,8 @@ docs/
   09-prd.html                    PRD 1.0: spec + correções de dados + arquitetura, guardrails, evals, FinOps, contratos, plano
   prompt-gi-2026-09-27.pdf/.md   prompt do agente (22 exemplos) e do validador (Gi) · notas-prompt-gi-2026-09-27.pdf/.md (arquitetura)
   00-briefing · 01-evidencias · 02-proposta · 03-racional · 04-arquitetura · 05-responsible-ai
-  06-design-system · 07-demo-roteiro · 08-plano · 10-contrato-dados-gold · 11-finops · decisoes.md · arquivo/
+  06-design-system · 07-demo-roteiro · 08-plano · 10-contrato-dados-gold · 11-finops · 12-identidade-e-seguranca
+  decisoes.md · arquivo/
 agent/                           projeto uv (Python 3.11)
   cabe_core/                     núcleo determinístico: capacidade, grupo, anomalia, ofertas, travas, acompanhar, painel,
                                  fatura, dados (FonteCsv | FonteBigQuery | FonteMemoria), config, dinheiro, calendario
@@ -467,7 +539,9 @@ agent/                           projeto uv (Python 3.11)
   server/                        main.py (FastAPI, serve demo/) · conversa.py (modos) · sessoes.py · limites.py · guardiao.py
   evals/                         golden.json (16 casos) · rodar.py · golden.evalset.json (adk eval) · resultado-*.md
   sql/                           v_fatura.sql · v_cliente_mes.sql · v_perfil.sql (DDL equivalente ao motor, não executado)
-  tests/                         test_core.py · test_policy.py · test_guardiao.py · test_api.py · test_dados.py · conftest.py
+  tests/                         test_core · test_policy · test_guardiao · test_checagens · test_contexto · test_validador_offline
+                                 test_api · test_dados · test_finops · test_robustez · test_verificacao_final · conftest.py
+                                 (190 testes, nenhum chama o modelo)
   pyproject.toml · uv.lock · .env.example · README.md
 camada_analitica/                camada medallion do Lucas no BigQuery: README.md · sql/silver/*.sql · sql/gold/*.sql ·
                                  docs/{arquitetura,regras-negocio,homologacao,alinhamento-com-o-motor}.md · docs/personas-gold-*.json
@@ -479,9 +553,11 @@ analise/                         scripts exploratórios que geraram os números 
 scripts/download_bigquery.py     download da base (não rodar sem necessidade)
 fontes/                          case oficial, template da ficha, guia GCP, transcrições
 output/                          fichas e PPTX enviados
-deploy/                          deploy.sh (Cloud Build → Artifact Registry → Cloud Run) · CHECKLIST.md (ordem do dia) ·
-                                 deploy_agent_engine.sh (opcional, adk deploy agent_engine) · gerar_qr.py
+deploy/                          cloudbuild.yaml (CI: test → build → push → deploy, SA de runtime, aprovação manual) ·
+                                 deploy.sh (caminho do dia: Cloud Build → Artifact Registry → Cloud Run) · CHECKLIST.md (ordem do dia
+                                 e rollback) · deploy_agent_engine.sh (opcional, adk deploy agent_engine) · gerar_qr.py
 Dockerfile · .dockerignore       imagem com contexto na raiz (config, dados, demo, agent)
+.gcloudignore                    o que sobe para o Cloud Build (sem .venv, .env, docs, fontes, output)
 ```
 
 ---
@@ -496,7 +572,7 @@ Decidido em 26–27/09 à noite: nome (feature "Cabe no Bolso", chamada "ia.i, c
 
 Pendentes de aceite do time (recomendação implementada como padrão, tudo parametrizado em `config/taxas.yaml`): prestamista fora; caminho pela capacidade com grupo como trava (e a rolada do gatilho conta no grupo); personas e datas da demo (Ana ago/2025, Bruno set/2025); texto da Res. BCB 468/2025 a conferir; taxas com `status: conferir` (consignado CLT 3,5%, INSS 1,8%, crédito pessoal 6%) rotuladas "ilustrativa" até o time confirmar. Para a manhã: alinhamento da gold do Lucas às 8h30 (`camada_analitica/docs/alinhamento-com-o-motor.md` §3), deploy às 9h (`deploy/CHECKLIST.md`), padrão de `MODO_CONVERSA` (`gi` se os exemplos da Gi passarem ao vivo, senão `tools`).
 
-Marcado como DESCONHECIDO (não inventamos): rubrica e pesos da banca; elegibilidade real dos produtos; perda em caso de calote, interchange e funding do banco; preço por token do modelo do evento; roadmap do ia.i para a fatura.
+Marcado como DESCONHECIDO (não inventamos): rubrica e pesos da banca; elegibilidade real dos produtos; perda em caso de calote, interchange e funding do banco; roadmap do ia.i para a fatura. O preço por token do modelo deixou de ser desconhecido: confirmado na página oficial e registrado com fonte e vigência em `config/finops.yaml` (`docs/11-finops.md` §2).
 
 ---
 

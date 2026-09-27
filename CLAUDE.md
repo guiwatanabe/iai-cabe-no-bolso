@@ -12,12 +12,16 @@ Agente do banco, dentro do ia.i, que assume tirar o cliente da fatura rolada: pe
 
 ## Mapa do repositório
 
-- `docs/spec-gi-2026-09-27.pdf`: spec de produto (Gi). `docs/09-prd.html`: PRD 1.0 (contratos de `cabe_core` e da API, guardrails, evals, FinOps, plano por pessoa). `docs/10-contrato-dados-gold.md`: contrato das views BigQuery. `docs/00`–`08`, `docs/decisoes.md`: briefing, evidências, proposta, racional, arquitetura, Responsible AI, design system, demo, plano, decisões. `docs/arquivo/`: histórico (não editar).
+- `docs/spec-gi-2026-09-27.pdf`: spec de produto (Gi). `docs/09-prd.html`: PRD 1.0 (contratos de `cabe_core` e da API, guardrails, evals, FinOps, plano por pessoa). `docs/10-contrato-dados-gold.md`: contrato das views BigQuery. `docs/11-finops.md`: GenAI FinOps (preços com fonte em `config/finops.yaml`, custo medido, travas). `docs/12-identidade-e-seguranca.md`: quem é quem no GCP, papéis mínimos, zero chaves JSON, ameaças × mitigação. `docs/00`–`08`, `docs/decisoes.md`: briefing, evidências, proposta, racional, arquitetura, Responsible AI, design system, demo, plano, decisões. `docs/arquivo/`: histórico (não editar).
 - `data/`: base local versionada (`extrato_sintetico.csv.gz`, SHA em `data/README.md`) e `personas/` (o JSON da `3e7d20b2` é o gabarito dos testes, em centavos; `755627ab_escorregao.json` é a Escorregão da demo).
 - Personas e datas da demo (regras fecham sem olhar o futuro): **Ana · Escorregão** `755627ab-804b-4211-b0ea-f4ebacc58716` em `202508` (fatura R$ 2.955,00, mínimo pago, cobertura curta de 7 dias); **Bruno · Rolando a fatura** `3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b` em `202509` (4 roladas antes, fatura R$ 3.619,95, consignado 10× R$ 110,51); reserva `8dc79559-e45a-46bd-bd8d-a9b818642251` em `202508`. Cadastradas em `config/taxas.yaml: personas_demo`.
 - `analise/`: scripts exploratórios que geraram os números (não são produto).
 - `config/taxas.yaml`: única fonte de taxas e parâmetros.
-- `agent/`, `demo/`: especificações do que construir (README em cada um; contratos das ferramentas em `agent/README.md`).
+- `agent/`: projeto `uv` (Python 3.11). `agent/cabe_core/`: núcleo determinístico, puro, sem rede (fatura, capacidade, grupo, anomalia, ofertas, travas, acompanhar, painel, `dados.py` CSV ou BigQuery). `agent/cabe_no_bolso/`: o `LlmAgent` (`agent.py`, `instruction.md`, `tools.py`, `callbacks.py`, `policy.py`, `runtime.py`; modo gi em `contexto.py`, `prompt_gi.py`, `agente_gi.py`, `checagens.py`; `validador.py`). `agent/server/`: FastAPI (`main.py`, `conversa.py`, `sessoes.py`, `limites.py`, `guardiao.py`), serve `demo/` em `/`. `agent/evals/`: golden set, exemplos da Gi, `rodar.py`, resultados. `agent/tests/`: 136 testes sem modelo. `agent/sql/`: DDL equivalente ao motor (não executado). Contratos e regras em código: `agent/README.md`.
+- `demo/`: página estática mobile-first (`index.html`, `app.js`, `app.css`) e `mock/` com respostas gravadas (plano B); nenhum número calculado no navegador (`demo/README.md`).
+- `deploy/`: `cloudbuild.yaml` (CI test → build → push → deploy, deploy com `squad-agent-sa`, disparo manual), `deploy.sh` (caminho do dia), `CHECKLIST.md` (ordem do dia e rollback), `deploy_agent_engine.sh` (opcional), `gerar_qr.py`. Na raiz: `Dockerfile`, `.dockerignore`, `.gcloudignore`.
+- `camada_analitica/`: camada medallion do Lucas no BigQuery (`sql/silver`, `sql/gold`, `docs/` com regras, homologação e alinhamento com o motor). Camada-alvo do motor; hoje o agente lê o extrato bruto.
+- `config/finops.yaml`: preços com fonte, baseline medido e travas de custo (docs/11).
 - `fontes/`: case oficial, template, guia GCP, transcrições. `output/`: fichas e PPTX enviados. `scripts/`: download da base.
 
 ## Regras que não se negociam (vêm de docs/05)
