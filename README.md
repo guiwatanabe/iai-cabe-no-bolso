@@ -7,8 +7,9 @@ Protótipo do **Time 05** para a Batalha de Agentes Itaú × Google Cloud (26–
 | | |
 |---|---|
 | Regra de ouro | **Nenhum número que o cliente vê saiu do modelo.** Todo valor, taxa, prazo e percentual vem de `agent/cabe_core` (Python puro, testado) ou de `config/taxas.yaml`, carrega uma `origem`, e um guardião remove da resposta qualquer número sem origem. |
-| Fontes de verdade | `docs/spec-gi-2026-09-27.pdf` (produto) · `docs/09-prd.html` (PRD 1.0, spec + correções + camada técnica) · `docs/05-responsible-ai.md` · `docs/06-design-system-ai.md` · `docs/decisoes.md` |
-| Estado (27/09, 01h) | Núcleo, agente ADK, API, demo e container prontos e verificados juntos: `uv run pytest` 80 verdes (sem chamada ao modelo); golden set 16 de 16 ao vivo com `gemini-3.8-flash` (`agent/evals/resultado-2026-09-27-verificacao.md`); jornada das duas personas percorrida pela API e pelo navegador com 0 números sem origem. Falta rodar o deploy (`deploy/deploy.sh`) e gerar o QR com a URL final. |
+| Fontes de verdade | `docs/spec-gi-2026-09-27.pdf` (produto) · `docs/prompt-gi-2026-09-27.pdf` e `docs/notas-prompt-gi-2026-09-27.pdf` (prompt do agente, 22 exemplos, prompt do validador; "um agente, dois modos, um validador") · `docs/09-prd.html` (PRD 1.0, spec + correções + camada técnica) · `docs/05-responsible-ai.md` · `docs/06-design-system-ai.md` · `docs/10-contrato-dados-gold.md` · `docs/decisoes.md` |
+| Estado (27/09, 01h) | Núcleo, agente ADK, API, demo e container prontos e verificados juntos: `uv run pytest` 80 verdes (sem chamada ao modelo); golden set 16 de 16 ao vivo com `gemini-3.8-flash` (`agent/evals/resultado-2026-09-27-verificacao.md`); jornada das duas personas percorrida pela API e pelo navegador com 0 números sem origem. Camada analítica do Lucas no BigQuery conferida contra o motor (`camada_analitica/docs/alinhamento-com-o-motor.md`). Feito na madrugada: modo `gi` (prompt da Gi) + checagens em código + validador, 22 de 22 exemplos da Gi ao vivo (`agent/evals/resultado-gi-2026-09-27.md`); `uv run pytest` 131 verdes. Falta rodar o deploy (`deploy/CHECKLIST.md`, 9h) e gerar o QR com a URL final. |
+| Nome | **"Cabe no Bolso"** é a feature: o que o cliente usa dentro do ia.i. **"ia.i, cabe no bolso"** é a chamada: o convite na tela da fatura e a frase do pitch. Sem marca do Itaú na demo ("Protótipo do Time 05"). |
 
 ---
 
@@ -136,15 +137,46 @@ flowchart LR
   API --> LOG
 ```
 
+### Um agente, dois modos, um validador
+
+Arquitetura combinada com a Gi em 27/09 (`docs/notas-prompt-gi-2026-09-27.md`): um único agente escreve o insight da aba de cartões e conduz a conversa no chat do ia.i (o modo é um campo do contexto: `insight` ou `conversa`); o que tem resposta certa ou errada é checado em código; um **validador separado** (segundo `LlmAgent`, prompt do validador da Gi) aprova ou reprova a resposta pronta, com o motivo, e nunca escreve para o cliente. **Nenhuma mensagem chega ao cliente sem passar pelo validador.**
+
+```mermaid
+flowchart LR
+  G["gatilho no ia.i<br/>fechamento · pagar_outro_valor<br/>pergunta_cliente · acompanhamento"] --> C["contexto em código<br/>cabe_core sobre BigQuery ou CSV<br/>números já formatados como texto"]
+  C --> A["agente (LlmAgent)<br/>modo insight | conversa<br/>resposta em JSON"]
+  A --> K["checagens em código<br/>JSON · números citados · oferta_id<br/>consentimento · tamanho · termos"]
+  K -->|falha| A
+  K --> V["validador (2º LlmAgent)<br/>aprovado | violações + orientação"]
+  V -->|reprovado, 1ª vez| A
+  V -->|aprovado| M["mensagem ao cliente"]
+  V -->|reprovado de novo, ou R8| S["mensagem segura<br/>'Sua fatura fechou em R$ [valor] e vence dia [dia]. Veja as formas de pagar.' + falar com alguém"]
+  K -->|oferta inválida, sem consentimento| S
+```
+
+Estado em 27/09 01h50: o pipeline está **pronto e verificado ao vivo** (`agent/cabe_no_bolso/contexto.py`, `checagens.py`, `prompt_gi.py`, `agente_gi.py`, `validador.py`, `runtime.py`): 22 de 22 exemplos da Gi aprovados com o validador ligado (`agent/evals/resultado-gi-2026-09-27.md`); o modo com ferramentas continua pronto e ganhou o mesmo validador depois do guardião.
+
+#### Os dois modos de conversa e como escolher
+
+| | `MODO_CONVERSA=tools` (pronto) | `MODO_CONVERSA=gi` (pronto; **padrão**) |
+|---|---|---|
+| Prompt | `agent/cabe_no_bolso/instruction.md` + contexto da sessão montado em código (InstructionProvider) | Prompt da Gi verbatim (`docs/prompt-gi-2026-09-27.md`) com `{{diretrizes_itau}}`, `{{contexto_json}}` e `{{exemplos}}` preenchidos pelo código; nunca texto do cliente no prompt de sistema |
+| Dados | 7 ferramentas que só embrulham `cabe_core`; a análise e as ofertas já vão no contexto, o modelo chama ferramenta só quando precisa | Nenhuma ferramenta de dados: o servidor monta o contexto JSON já calculado (fatura, capacidade, ofertas liberadas, `entrada_regular_a_confirmar`, transações resumidas) |
+| Saída | Texto; guardião `after_model` confere números e termos | JSON (`mensagens|texto`, `acao`, `oferta_id`, `numeros_citados`); checagens em código + guardião |
+| Validador | Sim (nos dois modos) | Sim (nos dois modos) |
+| Quando usar | Reserva testada: golden set 16/16 | **Padrão desde 27/09**: os 22 exemplos da Gi passaram ao vivo (22/22, a regra era ≥ 80%). A escolha e o porquê ficam em `agent/.env.example`; `deploy/deploy.sh` lê de lá |
+
+`MODO_CONVERSA=sem_llm` é o plano B: a mesma jornada só com `cabe_core`, zero chamadas ao modelo. O acompanhamento mensal (`POST /api/avancar-mes`) nunca chama o modelo em nenhum modo; o gatilho `acompanhamento` do prompt existe, desligado por padrão (`acompanhamento_com_llm: false`).
+
 ### Camadas
 
 | Camada | Onde | O que faz |
 |---|---|---|
 | Núcleo determinístico | `agent/cabe_core/` | Funções puras, dinheiro em centavos (`int`), datas como `anomes`. Cada retorno é um `dict` serializável com `origem` por número e uma lista `numeros: [{valor, origem}]`. `capacidade.motor` (90 dias → folga, falta, tipo, frase), `grupo.classificar`, `anomalia.renda/gastos/composicao_fatura`, `ofertas.montar/plano_de`, `travas.*`, `acompanhar.ciclo`, `painel.juri`, `fatura.reconstruir/historico`, `dinheiro`, `calendario`, `config`. |
-| Dados | `agent/cabe_core/dados.py` | Única porta para os dados. `FonteCsv` (pandas, CSV carregado uma vez por processo) e `FonteBigQuery` (mesma interface; uma consulta por cliente por sessão; SQL das views em `agent/sql/`). Escolha por `DADOS=csv\|bigquery`; BigQuery sem credencial cai para CSV. |
+| Dados | `agent/cabe_core/dados.py` | Única porta para os dados. `FonteCsv` (pandas, CSV carregado uma vez por processo), `FonteBigQuery` (mesma interface; lê o extrato do cliente de `hackathon_dados.extrato_sintetico` **uma vez por cliente por sessão** e reaplica as agregações Python, então dá o mesmo número que o CSV; `cash90_hackathon` só quando a janela pedida cabe nos 90 dias; testada com consulta injetada em `tests/test_dados.py`) e `FonteMemoria` (testes). Escolha por `DADOS=csv\|bigquery`; BigQuery sem credencial cai para CSV. A camada gold do Lucas (`camada_analitica/`) é a camada-alvo (§9). |
 | Política | `agent/cabe_core/travas.py` + `agent/cabe_no_bolso/policy.py` | Travas de crédito como funções puras que devolvem `{permitido, bloqueios[]}`; `registro_taxas()` lê `config/taxas.yaml` uma vez; `liberacao_para()` simula o serviço de crédito; `termos_bloqueados()` é a lista negra do guardião. |
 | Agente | `agent/cabe_no_bolso/agent.py`, `instruction.md`, `tools.py`, `callbacks.py`, `runtime.py` | Um único `LlmAgent` do Google ADK (`root_agent`). `tools.py` só embrulha `cabe_core` como function tools (`registrar_consentimento`, `analisar_fatura`, `listar_ofertas`, `detalhar_fatura`, `simular_continuar_no_rotativo`, `confirmar_plano`, `encaminhar_humano`); a ferramenta devolve ao modelo um resumo já formatado e guarda o dict completo no estado. Callbacks: `before_tool` (bloqueia ferramenta de dados sem consentimento), `after_model` (guardião + FinOps + trace da chamada), `after_tool` (trace), `before_model` (cronômetro). `runtime.py` é o dono da sessão do ADK (`InMemorySessionService`) e expõe `criar_sessao`, `consentir`, `conversar`, `avancar_mes`, `trace`, `painel`. Estado de sessão: `cliente_id`, `consentimento`, `mes_simulado`, `motor`, `ofertas`, `plano`, `numeros_validados`, `trace`, `finops`. Detalhe em `agent/README.md`. |
-| API | `agent/server/main.py`, `conversa.py`, `sessoes.py`, `limites.py`, `guardiao.py` | FastAPI. `POST /api/sessao`, `POST /api/consentimento`, `POST /api/mensagem`, `POST /api/avancar-mes` (sem LLM), `GET /api/trace/{sessao_id}`, `GET /api/painel/{sessao_id}` (júri + finops), `GET /api/saude`, `GET /api/personas`. Serve `demo/` em `/` (gzip). Erros como `{erro, mensagem_cliente}`. Dois modos: `llm` (delega ao `runtime` do agente) e `sem_llm` (mesma jornada só com `cabe_core`; `MODO_CONVERSA=sem_llm` ou queda automática se o modelo falhar, sem a banca ver erro). Toda resposta passa de novo pelo guardião na borda (`server/guardiao.py`). Contrato completo em `docs/09-prd.html` §6 e `demo/README.md`. |
+| API | `agent/server/main.py`, `conversa.py`, `sessoes.py`, `limites.py`, `guardiao.py` | FastAPI. `POST /api/sessao`, `POST /api/consentimento`, `POST /api/mensagem`, `POST /api/avancar-mes` (sem LLM), `GET /api/trace/{sessao_id}`, `GET /api/painel/{sessao_id}` (júri + finops), `GET /api/saude`, `GET /api/personas`. Serve `demo/` em `/` (gzip). Erros como `{erro, mensagem_cliente}`. Dois modos: `llm` (delega ao `runtime` do agente; dentro dele `MODO_CONVERSA=gi` ou `tools`) e `sem_llm` (mesma jornada só com `cabe_core`; `MODO_CONVERSA=sem_llm` ou queda automática se o modelo falhar, sem a banca ver erro). No modo `gi` o servidor mapeia a ação do cliente para modo/gatilho do prompt da Gi, resolve `confirmar`, `falar_com_pessoa` e `nao_quero` em código (0 chamadas) e trata `acao`, `oferta_id`, `numeros_citados` e `validador` como opcionais. Em todo turno, nos três modos: checagens em código na borda (formato, números, oferta, consentimento, tamanho, termos proibidos; o que falha vira mensagem segura), guardião (`server/guardiao.py`), teto de chamadas por sessão (`config/finops.yaml`) e um registro em `turnos` com o veredito do validador para `/api/painel`. Contrato completo em `docs/09-prd.html` §6 e `demo/README.md`. |
 | Demo | `demo/` | Uma página, sem build. Nenhum número é calculado no navegador; todo número exibido carrega `data-origem` resolvida a partir de `numeros_validados`. |
 
 ### Determinístico × LLM
@@ -170,7 +202,7 @@ O prompt recebe os 90 dias já organizados em blocos (resumo de capacidade, fatu
 
 ## 4. Guardrails em camadas
 
-Guardrails próprios do case, em código, não em instrução. Onde cada um vive e como é testado (`uv run pytest`: 80 testes, nenhum chama o modelo; golden set ao vivo em `agent/evals/`).
+Guardrails próprios do case, em código, não em instrução. Onde cada um vive e como é testado (`uv run pytest`: 136 testes, nenhum chama o modelo; golden set ao vivo em `agent/evals/`).
 
 | Camada | Regra | Onde (arquivo : função) | Como é testado |
 |---|---|---|---|
@@ -180,6 +212,8 @@ Guardrails próprios do case, em código, não em instrução. Onde cada um vive
 | **Taxas** | Taxas só de `config/taxas.yaml`, com fonte, data e status. O LLM nunca estima taxa. `status: conferir` entra rotulada "ilustrativa". Prestamista desligado (`permitir_prestamista: false`). | `agent/cabe_core/config.py : carregar_taxas, produtos_com_taxa`; `agent/cabe_no_bolso/policy.py : registro_taxas, produtos_disponiveis`; `agent/cabe_core/ofertas.py : _rotulo_taxa` | `test_taxa_ausente_remove_produto`, `test_registro_taxas_e_personas`; Golden 6 ("qual a taxa?" sem config → não sabe) |
 | **Modelo** | Instrução com papel, tom (`docs/06`) e regra de ouro ("todo número vem de ferramenta; se não tiver, pergunte ou diga que não sabe"); safety settings do Gemini; temperatura baixa; nome do modelo em variável. | `agent/cabe_no_bolso/instruction.md`; `agent.py : criar_agente, config_geracao` (temperatura 0,2, `max_output_tokens` 2048, `thinking_level` LOW, safety `BLOCK_MEDIUM_AND_ABOVE` nas 4 categorias); `agent/.env.example : MODELO, MODELO_RESERVA` | Golden 6, 9, 10 ao vivo: aprovados |
 | **Saída (guardião)** | Todo número da resposta é conferido contra `state["numeros_validados"]`; sem origem → removido e a resposta pede confirmação. Lista negra: seguro, prestamista, cashback, pontos, cartão novo, investimento, capitalização. "sujeito a" reescrito para "depende de aprovação". Termos de julgamento barrados. `guardiao.removidos[]` e `termos_bloqueados[]` expostos na API. | `agent/cabe_no_bolso/callbacks.py : after_model, guardiao_texto` (também confere contagens: "10 parcelas", "7 dias", "dia 20"; aceita constantes de `config/taxas.yaml` com origem `config:taxas.yaml:<chave>`); segunda passada na borda em `agent/server/guardiao.py : conferir_resposta`; lista em `agent/cabe_no_bolso/policy.py : termos_bloqueados`; texto em `config/taxas.yaml : texto_condicao` | `test_guardiao.py` (18 testes: número sem origem removido, formatos de R$, "sujeito a" reescrito, lista negra, julgamento); Golden 1, 7 e mentora 3, 4 ao vivo: aprovados; contagem de removidos visível na aba FinOps da demo |
+| **Checagens em código (modo `gi` e modo `tools`)** | Antes do validador, o que tem resposta certa ou errada: JSON válido no formato do modo (regenera); cada item de `numeros_citados` existe no contexto e todo número do texto está em `numeros_citados` (regenera; 2ª falha → mensagem segura; no modo `tools` continua o guardião); `oferta_id` existe em `ofertas_liberadas` (mensagem segura); sem consentimento a ação não é `mostrar_oferta` nem `abrir_resumo_contrato` (mensagem segura); insight ≤ 160 caracteres e conversa ≤ 3 mensagens (regenera); termos proibidos do prompt + "sujeito a" + seguro/prestamista/cashback/pontos/cartão novo/investimento (regenera); 1 mensagem proativa por dia (não envia) | `agent/cabe_no_bolso/checagens.py`; contexto e índice de números em `agent/cabe_no_bolso/contexto.py`; prompt e agente do modo gi em `agent/cabe_no_bolso/prompt_gi.py`, `agente_gi.py` | `agent/tests/test_checagens.py` (11 testes: número fora do contexto, oferta inexistente, ação sem consentimento, insight > 160, termo proibido, JSON inválido, limite de contato, mensagem segura só com números do contexto) e `test_contexto.py` (11: contexto da Ana e do Bruno com os números do núcleo formatados e com origem); 0 falhas finais nas 33 saídas dos exemplos da Gi ao vivo; tabela em `docs/notas-prompt-gi-2026-09-27.md` |
+| **Validador** | Segundo `LlmAgent` com o prompt do validador da Gi (R1 números, R2 crédito liberado, R3 consentimento, R4 termos, R5 histórico e julgamento, R6 contratação e promessas, R7 insistência, R8 proteção, R9 escopo, R10 dados sensíveis, R11 formato, R12 tom). Recebe contexto, diretrizes, últimas mensagens e a saída; devolve `aprovado | violacoes | orientacao`. Bloqueante → regenera uma vez com as violações; reprovado de novo, ou qualquer R8 → mensagem segura. Toda reprovação vai para o trace e para o painel. Modelo em `MODELO_VALIDADOR` (padrão = `MODELO`). Ativo nos dois modos (`validador.ativo: true`). Exceção (27/09 02h): no modo tools, o turno em que a ferramenta `confirmar_plano` rodou usa o texto fixo em código do `confirmar` do modo gi e não passa pelo validador: o texto do modelo citava números do núcleo que o contexto da Gi não expõe (teto do cartão) e caía por R1/R19, virando mensagem segura depois do plano já registrado | `agent/cabe_no_bolso/validador.py`; fluxo em `runtime._turno_gi` (modo gi) e `runtime._validar_modo_tools` (modo tools); `docs/prompt-gi-2026-09-27.md` (bloco do validador) | 22 exemplos da Gi ao vivo, 22/22 aprovados (33 vereditos, 5 reprovações seguidas de regeneração e aprovação; `agent/evals/resultado-gi-2026-09-27.md`); `agent/tests/test_validador_offline.py` (13 testes com modelo e validador falsos: regeneração única, reprovado de novo → mensagem segura, R8 → pessoa, validador indisponível não derruba a conversa, modo tools) |
 | **Interface** | Nenhum número calculado no navegador; todo número com `data-origem`; opções bloqueadas somem do comparador (ficam no trace); "sujeito a" nunca aparece; rodapé de simulação fixo; a IA se identifica como IA e oferece uma pessoa em todo fluxo. | `demo/app.js` (registro `numeros`, `origemDe`, marcação `data-origem`, substituição da condição vaga) | Jornada completa das duas personas: 0 números `sem-origem` no DOM e 0 ocorrências de "sujeito a" (`demo/README.md`) |
 | **Humano** | Sempre há caminho para uma pessoa. Pedido explícito, angústia, nada cabe, No limite, renda irregular ou reincidência encerram a automação com o contexto, sem produto. | `agent/cabe_no_bolso/policy.py : encaminhar_humano`; `agent/cabe_core/ofertas.py : montar` (`encaminhar_humano=True`); ação `falar_com_pessoa` na API | `test_no_limite_sem_credito_automatico`, `test_parcela_nao_cabe_nenhuma_opcao`, `test_reincidencia_apos_aceite_chama_humano`; Golden 4, 9 |
 | **Plataforma** | `max-instances` e concorrência limitados (DoS e custo); segredo no Secret Manager; identidade por service account; sem PII em log; dados sintéticos; Model Armor opcional (não usado na demo). | `deploy/deploy.sh` (`--min-instances=1 --max-instances=1 --session-affinity --concurrency=40 --timeout=120`, Vertex via service account, sem chave); `agent/server/limites.py` (rate limit por IP, corpo máximo, concorrência, origem, cabeçalhos); `Dockerfile` (usuário não root, `uv sync --frozen`) | `test_api.py` (429 com `Retry-After`, 413, 403 de origem, cabeçalhos de segurança, `/docs` desligado); revisão de logs sem PII |
@@ -201,7 +235,7 @@ Norte: "confiança acima de tudo" (abertura do evento). Princípios, implementa�
 | **LGPD** | Base legal, minimização, transparência | Consentimento por finalidade registrado antes de qualquer leitura; só 90 dias no contexto; sem identificadores sensíveis no prompt; sem PII em log |
 | **Res. BCB 468/2025** | Informar ao BC juros acumulados sobre a dívida original | Vira métrica de resultado (juros evitados no painel). Texto a confirmar antes do pitch (`docs/decisoes.md`, pendência 5) |
 
-Equidade: aposentado é público vulnerável (linguagem simples; consignado INSS só com confirmação humana, `travas.requer_confirmacao_humana`). No limite entra sem crédito automático e com pessoa: é o grupo com mais renda irregular e mais aposentados na base. Tom sem julgamento: o agente fala do mês e do orçamento, nunca do histórico de pagamentos (`docs/06`).
+**Público vulnerável** (decisão do time em 26/09 23h45; `cliente.publico_vulneravel` no contexto do prompt da Gi). Quem recebe benefício INSS é tratado como público vulnerável: linguagem mais simples, sem pressa, e **consignado INSS só com uma pessoa no fluxo** (`travas.requer_confirmacao_humana`: a opção pode aparecer, mas exige confirmação humana e nunca é contratada pelo agente). **LOAS, auxílio e salário-maternidade ficam fora de qualquer oferta de crédito**: na base sintética eles aparecem como `Beneficio INSS` sem distinção, então o tratamento fino vai para o roadmap (piloto) com o dado real do benefício. No limite entra sem crédito automático e com pessoa (item 2a do prompt da Gi: formas de pagar + equipe): é o grupo com mais renda irregular e mais aposentados na base. Tom sem julgamento: o agente fala do mês e do orçamento, nunca do histórico de pagamentos (`docs/06`).
 
 Frase para o pitch: *"Nenhum número que o cliente vê saiu do modelo: tudo vem de cálculo auditável, com consentimento antes, humano sempre disponível e nada de produto fora do plano."*
 
@@ -253,7 +287,11 @@ Frase para o pitch: *"Nenhum número que o cliente vê saiu do modelo: tudo vem 
 
 **16 de 16 aprovados** · 19 chamadas ao modelo · tokens entrada/saída 90.432/1.978 · latência por chamada p50 3,4 s / p95 5,6 s · fidelidade numérica média 100% (nenhum número sem origem chegou ao texto). "Fidelidade numérica" = números citados pelo modelo que existem em `numeros_validados`; "trajetória" = ferramentas chamadas no turno (a análise e as ofertas já vão no contexto da sessão, por isso a maioria dos turnos não chama ferramenta). Tabela gerada por `evals/rodar.py` em `agent/evals/resultado-2026-09-27-verificacao.md`; execução anterior (madrugada, 15 de 16, com o `gs02` de 1 turno) em `agent/evals/resultado-2026-09-27.md`.
 
-### Testes sem modelo (`uv run pytest`, 80 verdes, ~1,5 s, sobre o CSV)
+### Resultado ao vivo do modo gi (27/09 01h40 · `gemini-3.8-flash` · `uv run python evals/rodar.py --conjunto gi`)
+
+**22 de 22 exemplos da Gi aprovados** com o validador ligado (19 na primeira passada; I3, I5 e C2 reprovaram por um erro no contexto ilustrativo do Bruno, parcela maior que a folga, e passaram depois da correção). 34 chamadas ao agente e 33 ao validador; latência do agente p50 3,3 s / p95 4,5 s; validador p50 2,8 s / p95 3,9 s; nenhum número fora do contexto chegou ao texto. Tabelas completas, chamada a chamada, em `agent/evals/resultado-gi-2026-09-27.md`.
+
+### Testes sem modelo (`uv run pytest`, 131 verdes, ~3 s, sobre o CSV)
 
 `agent/tests/test_core.py` reproduz o gabarito `data/personas/3e7d20b2_grupo_b.json` mês a mês em centavos (fatura, pago, modo, juros, fixos, cartão, renda; 12 meses idênticos), a reconstrução da fatura por modo, os grupos por faixa, anomalia de renda e gasto, o fator 1,33 só nas projeções, 3 ciclos de acompanhamento encerrando para as duas personas, o painel com o comparativo real de 2025, dados indisponíveis, e que **todo número devolvido tem origem**. `test_policy.py` cobre as travas uma a uma. `test_guardiao.py` cobre o guardião, o consentimento em `before_tool`, as ferramentas ponta a ponta e o runtime (sessão → sim → 3 ciclos → painel) com um modelo falso. `test_api.py` percorre a API inteira em `MODO_CONVERSA=sem_llm` (jornada das duas personas, cenário 3, erros, limites, cabeçalhos, queda do modelo para a reserva determinística). `analise/persona_export.py` reproduz o gabarito fora do pacote.
 
@@ -277,10 +315,10 @@ Orçamento do grupo: US$ 1.000 em créditos, compartilhado com Antigravity e Gem
 | Decisão | Como | Onde |
 |---|---|---|
 | Modelo flash | `gemini-3.8-flash` via Vertex AI (`GOOGLE_CLOUD_LOCATION=global`; us-central1 dá 404 para esse modelo); reserva `gemini-2.5-flash` | `agent/.env.example` |
-| Poucas chamadas por sessão | **Medido: 3 chamadas ao modelo por jornada da demo** (ver opções → confirmar → acompanhamento sem LLM); ~5 mil tokens de entrada e 50–300 de saída por chamada; latência por chamada p50 2,7–3,4 s, p95 4–5,6 s (Vertex `global`). O motor, o grupo, as ofertas e o painel são código e vão ao modelo já resumidos | `cabe_core`; `agent/cabe_no_bolso/callbacks.py : after_model` (contagem, tokens, latência por chamada); `GET /api/painel/{sessao_id}.finops` |
-| **Zero LLM no acompanhamento** | `POST /api/avancar-mes` chama `cabe_core.acompanhar.ciclo` direto; o agente só entra quando há o que conversar | `agent/cabe_core/acompanhar.py` |
-| Respostas gravadas para validar | Golden set e demo em modo mock não gastam token; ≤ 40 chamadas ao vivo na madrugada | `demo/mock/*.json`, `analise/gera_mock_demo.py` |
-| BigQuery só por views agregadas | Uma consulta por cliente por sessão, cache em memória, nunca em loop; CSV em dev, testes e fallback | `agent/cabe_core/dados.py : FonteBigQuery`, `agent/sql/*.sql` |
+| Poucas chamadas por sessão | **Medido no modo `tools`: 3 chamadas ao modelo por jornada da demo** (ver opções → confirmar → acompanhamento sem LLM); ~5 mil tokens de entrada e 50–300 de saída por chamada; latência por chamada p50 3,4 s / p95 5,6 s (Vertex `global`, 27/09 00h53). **Com o validador: 2 chamadas por turno** (1 do agente + 1 do validador), mais 1 regeneração no pior caso; thinking mínimo (`thinking_budget=0`; `thinking_level=minimal` dá 400 no `gemini-3.8-flash`) e instrução do modo tools 20% menor; medido em 27/09 01h40: modo gi p50 3,3 s / p95 4,5 s por chamada do agente (~8,5 mil tokens de entrada) e p50 2,8 s / p95 3,9 s do validador; modo tools 4 chamadas entre 3,1 e 5,1 s (`agent/evals/resultado-gi-2026-09-27.md`). Verificação pela API em 27/09 02h (jornada da demo, validador ligado): modo gi, Ana `ver_opcoes` 6,8 s de parede (agente 4,1 s + validador 2,5 s, 12 mil tokens de entrada) e `confirmar_entrada_regular` 8,2 s (5,6 + 2,5); Bruno `ver_opcoes` 16,6 s com 1 regeneração pedida pelo validador (R16: faltou citar os encargos do mínimo; 4,1 + 3,8 + 4,3 + 4,3); `confirmar` e `avancar-mes` em código (< 10 ms). Modo tools: Bruno `ver_opcoes` 6,9 s (3,8 + 2,9; 8 mil tokens), `confirmar` 7,3 s (2 chamadas do agente, texto fixo, sem validador). O motor, o grupo, as ofertas e o painel são código e vão ao modelo já resumidos | `cabe_core`; `agent/cabe_no_bolso/callbacks.py : after_model` (contagem, tokens, latência por chamada); `GET /api/painel/{sessao_id}.finops` |
+| **Zero LLM no acompanhamento** | `POST /api/avancar-mes` chama `cabe_core.acompanhar.ciclo` direto; o agente só entra quando há o que conversar; o gatilho `acompanhamento` do prompt fica desligado (`acompanhamento_com_llm: false`) | `agent/cabe_core/acompanhar.py` |
+| Respostas gravadas para validar | Golden set e demo em modo mock não gastam token; ≤ 40 chamadas ao vivo por agente por tarefa na madrugada | `demo/mock/*.json`, `analise/gera_mock_demo.py` |
+| BigQuery uma vez por cliente por sessão | `FonteBigQuery` lê o extrato do cliente uma vez e agrega em Python (nunca em loop); `cash90_hackathon` (D-90) quando a janela cabe; CSV em dev, testes e reserva. A gold do Lucas (agregada) entra quando alinhada. Conferência da gold feita com 4 consultas, resultado em cache | `agent/cabe_core/dados.py : FonteBigQuery`, `camada_analitica/`, `analise/confere_gold_lucas.py` |
 | Cloud Run escala a zero fora da demo | No dia, `--min-instances=1 --max-instances=1 --concurrency=40 --cpu=1 --memory=1Gi` (sessão em memória; sem cold start na frente da banca); depois, `min=0` | `deploy/deploy.sh` |
 | Reserva sem custo de modelo | Se o modelo falhar ou estourar cota, a sessão cai para `sem_llm` (mesma jornada, só `cabe_core`, zero tokens) e a demo estática ainda tem as respostas gravadas (`?mock=1`) | `agent/server/conversa.py`; `demo/mock/*.json` |
 | Alertas de orçamento | 50 / 80 / 100% do crédito do grupo (Cloud Billing → Monitoring) | Console GCP **(a configurar)** |
@@ -319,7 +357,13 @@ Orçamento do grupo: US$ 1.000 em créditos, compartilhado com Antigravity e Gem
 - Fixos = lista de subcategorias de `analise/persona_b.py` (financiamento, aluguel, condomínio, escola, energia, água, gás, telecom, empréstimos, consórcio, seguro auto). Essenciais = macros Mercado, Posto, Transporte público, Cuidados pessoais, Educação, Pets, Casa. Ambos em `config/taxas.yaml`.
 - Armadilhas: compra no cartão e pagamento da fatura são ambos saída (não somar); `saldo_apos` não serve como saldo; a base **não carrega o não pago para a fatura seguinte** (a bola de neve é mecânica do mercado, não dado); PIX recebido é ambíguo (perguntar, não assumir).
 
-**Camada gold no BigQuery** (`docs/10-contrato-dados-gold.md`; `agent/sql/v_fatura.sql`, `agent/sql/v_cliente_mes.sql`, `agent/sql/v_perfil.sql`): views com as mesmas definições do CSV, DDL escrito e não executado; o agente faria um `SELECT` por cliente por sessão. Se o BigQuery falhar, o CSV assume e `GET /api/saude` diz qual fonte está ativa.
+### Camada analítica (BigQuery)
+
+O Lucas subiu em `hackathon_dados` (27/09 00h10) a camada medallion do produto, com SQL e docs em **`camada_analitica/`**: bronze `cash90_hackathon` (os 90 dias mais recentes da base, o "cache" do app), silver `silver_cliente_dia`, `silver_recebimentos`, `silver_historico_fatura_12m`, `silver_compromissos`, `silver_cartao`, `silver_cliente_features`, e gold `gold_capacidade_pagamento`, `gold_elegibilidade`, `gold_contexto_agente` (`camada_analitica/README.md` e `camada_analitica/docs/{arquitetura,regras-negocio,homologacao}.md`). Princípio comum: a LLM não calcula capacidade; recebe contexto estruturado.
+
+Ela é a **camada-alvo** do motor. Hoje o agente lê o extrato bruto (`FonteBigQuery` sobre `extrato_sintetico`, ou o CSV) e calcula em Python; o motor passa a ler `gold_contexto_agente` quando as definições baterem. A conferência de 27/09 01h15 (4 consultas, só as duas personas; `analise/confere_gold_lucas.py`, cache em `camada_analitica/docs/personas-gold-2026-09-27.json`) está em **`camada_analitica/docs/alinhamento-com-o-motor.md`**: o grupo bate nas duas personas; cinco definições mudam número e têm a mudança de SQL sugerida para as 8h30: fatura por 1,33 × compras (motor: reconstrução exata do mês), renda = entradas ÷ 3 (motor: mediana de salário/INSS, PIX regular a confirmar), `saldo_apos` como saldo (motor: folga = renda − fixos − essenciais), roladas do ano inteiro (motor: 12 meses anteriores + a rolada do gatilho) e PONTUAL por folga ≥ falta (motor: o recebimento cobre em ≤ 25 dias). Além disso, `cash90` cobre só out–dez/2025, então as personas da demo (ago e set/2025) precisam da gold por mês de referência. O contrato de colunas continua em `docs/10-contrato-dados-gold.md`; o DDL equivalente às definições do motor está em `agent/sql/*.sql` (não executado).
+
+Se o BigQuery falhar, o CSV assume e `GET /api/saude` diz qual fonte está ativa.
 
 **Personas.** `data/personas/3e7d20b2_grupo_b.json` (gabarito dos testes, centavos) e `data/personas/755627ab_escorregao.json`, gerados por `analise/persona_b.py` e `analise/persona_export.py`.
 
@@ -337,7 +381,7 @@ shasum -a 256 data/extrato_sintetico.csv.gz        # conferir com data/README.md
 cd agent
 uv sync                                            # google-adk, fastapi, pandas, pyyaml, pytest
 cp .env.example .env                               # Vertex + ADC; DADOS=csv
-uv run pytest                                      # 80 testes, ~1,5 s, tudo sobre o CSV, sem chamar o modelo
+uv run pytest                                      # 136 testes, ~2 s, tudo sobre o CSV, sem chamar o modelo
 uv run pytest tests/test_core.py::test_bruno_202509_rolando_parcelamento   # um teste
 
 # uso direto do núcleo, sem LLM (a partir de agent/)
@@ -362,20 +406,25 @@ uv run python evals/rodar.py --limite-chamadas 25 --saida evals/resultado.md   #
 
 # só a demo, com respostas gravadas (a partir da raiz)
 python3 -m http.server 8765 --directory demo       # abrir http://localhost:8765/?mock=1  (&persona=ana|bruno)
-python3 analise/gera_mock_demo.py                  # regerar demo/mock/*.json após mudar cabe_core ou taxas.yaml
+cd agent && uv run python ../analise/gera_mock_demo.py   # regerar demo/mock/*.json após mudar cabe_core ou taxas.yaml (importa cabe_no_bolso: precisa do venv)
 node --check demo/app.js                           # sintaxe
 
 # personas (a partir da raiz)
 python3 analise/persona_export.py 3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b --saida /tmp/bruno.json
 ```
 
-Variáveis (`agent/.env.example`): `GOOGLE_GENAI_USE_VERTEXAI=TRUE`, `GOOGLE_CLOUD_PROJECT=batalha-time-05-xew3`, `GOOGLE_CLOUD_LOCATION=global`, `MODELO=gemini-3.8-flash`, `MODELO_RESERVA=gemini-2.5-flash`, `DADOS=csv|bigquery`, `MODO_CONVERSA=auto|sem_llm`; opcionais `RAIZ`, `TAXAS`, `BIGQUERY_TABELA`, `RATE_LIMIT_POR_MINUTO`, `MAX_CONCORRENCIA`, `MAX_CORPO_BYTES`, `SESSAO_TTL_S`, `PENSAMENTO`, `TEMPERATURA`, `MAX_TOKENS_SAIDA`, `LIMITE_CHAMADAS`. O projeto `uv` fica em `agent/`, mas `config/`, `data/` e `demo/` estão na raiz: os caminhos são resolvidos a partir da raiz do repo (`agent/cabe_core/config.py : raiz`).
+Variáveis (`agent/.env.example`): `GOOGLE_GENAI_USE_VERTEXAI=TRUE`, `GOOGLE_CLOUD_PROJECT=batalha-time-05-xew3`, `GOOGLE_CLOUD_LOCATION=global`, `MODELO=gemini-3.8-flash`, `MODELO_RESERVA=gemini-2.5-flash`, `MODELO_VALIDADOR` (padrão = `MODELO`), `DADOS=csv|bigquery`, `MODO_CONVERSA` (`tools` | `gi` | `sem_llm`; o padrão e o porquê no próprio `.env.example`); opcionais `RAIZ`, `TAXAS`, `BIGQUERY_TABELA`, `BIGQUERY_TABELA_90D` + `BIGQUERY_JANELA_90D` (`AAAAMM-AAAAMM`), `RATE_LIMIT_POR_MINUTO` (120 no deploy), `MAX_CONCORRENCIA`, `MAX_CORPO_BYTES`, `SESSAO_TTL_S`, `PENSAMENTO`, `TEMPERATURA`, `MAX_TOKENS_SAIDA`, `LIMITE_CHAMADAS`, `VALIDADOR_ATIVO`, `INSIGHT_COM_LLM` (modo gi: card do cartão pelo modelo, +1 chamada do agente e +1 do validador por sessão), `CHAMADAS_LLM_POR_SESSAO_MAX` (teto por sessão; padrão em `config/finops.yaml`).
+
+```bash
+# conferir a gold do Lucas contra o motor (4 consultas ao BigQuery só com --atualizar; senão usa o cache; --sem-bigquery só o motor)
+CLOUDSDK_ACTIVE_CONFIG_NAME=mana-gsoares uv run --project agent --with google-cloud-bigquery python analise/confere_gold_lucas.py
+``` O projeto `uv` fica em `agent/`, mas `config/`, `data/` e `demo/` estão na raiz: os caminhos são resolvidos a partir da raiz do repo (`agent/cabe_core/config.py : raiz`).
 
 ---
 
 ## 11. Deploy
 
-`Dockerfile` na raiz e `deploy/deploy.sh` (escritos; **o deploy ainda não foi executado**, e o `docker build` local não foi testado porque o daemon não estava disponível).
+`Dockerfile` na raiz, `deploy/deploy.sh` e a ordem do dia em **`deploy/CHECKLIST.md`** (9h → congelar às 10h45). **O deploy ainda não foi executado**; o `docker build` local não foi testado porque o daemon não estava disponível. Conferido em 27/09 01h só por metadados: APIs `run`, `cloudbuild`, `artifactregistry`, `aiplatform`, `bigquery`, `secretmanager` e `logging` ligadas; repositório `agentes` existe; nenhum serviço Cloud Run ainda; service accounts disponíveis `602056186697-compute@developer.gserviceaccount.com` (padrão) e `squad-agent-sa@batalha-time-05-xew3.iam.gserviceaccount.com`. O papel `roles/aiplatform.user` na service account de runtime **não foi conferido** (comando no checklist).
 
 - Imagem com contexto na **raiz** (copia `config/`, `data/extrato_sintetico.csv.gz`, `data/personas/`, `demo/` e `agent/`), `python:3.11-slim` + `uv 0.11.7` fixo + `uv sync --frozen --no-dev`, usuário não root, um worker de uvicorn na porta `$PORT`.
 - Cloud Build → Artifact Registry `agentes` → Cloud Run `cabe-no-bolso` (`us-central1`), tudo em `deploy/deploy.sh`:
@@ -387,12 +436,16 @@ CLOUDSDK_ACTIVE_CONFIG_NAME=mana-gsoares ./deploy/deploy.sh
 # = gcloud builds submit --tag us-central1-docker.pkg.dev/batalha-time-05-xew3/agentes/cabe-no-bolso:<git sha> .
 #   gcloud run deploy cabe-no-bolso --region=us-central1 --allow-unauthenticated \
 #     --min-instances=1 --max-instances=1 --session-affinity --concurrency=40 --cpu=1 --memory=1Gi --timeout=120 --cpu-boost \
-#     --set-env-vars GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_LOCATION=global,GOOGLE_CLOUD_PROJECT=batalha-time-05-xew3,DADOS=csv,MODELO=gemini-3.8-flash,MODO_CONVERSA=auto,RAIZ=/app
+#     --set-env-vars GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_LOCATION=global,GOOGLE_CLOUD_PROJECT=batalha-time-05-xew3,DADOS=csv,\
+#       BIGQUERY_TABELA=...,MODELO=gemini-3.8-flash,MODELO_VALIDADOR=gemini-3.8-flash,MODO_CONVERSA=<de agent/.env.example>,\
+#       RATE_LIMIT_POR_MINUTO=120,MAX_CONCORRENCIA=40,RAIZ=/app
 #   imprime a URL, faz curl em /api/saude e gera deploy/qr-cabe-no-bolso.png
+MODO_CONVERSA=sem_llm ./deploy/deploy.sh                                          # plano B: zero chamadas ao modelo
 uv run --project agent python deploy/gerar_qr.py https://URL-final --persona ana   # QR avulso
+./deploy/deploy_agent_engine.sh                                                    # OPCIONAL: só o agente na Agent Platform (adk deploy agent_engine)
 ```
 
-- Depois do deploy: `curl <url>/api/saude` deve responder `{ok: true, dados: "csv", modelo: "gemini-3.8-flash", modo: "llm"}`; gerar o QR com a URL final; congelamento às 10h45 (um redeploy zera as sessões em memória). Se o Cloud Run falhar: `MODO_CONVERSA=sem_llm` local por túnel, ou a demo estática com `?mock=1`; último recurso, vídeo de 60 s da jornada.
+- Depois do deploy: `curl <url>/api/saude` deve responder `{ok: true, dados: "csv", modelo: "gemini-3.8-flash", modo: "llm"}`; fumaça pela API e no celular (Ana e Bruno, "como cheguei aqui", 0 números sem origem); gerar o QR com a URL final; congelamento às 10h45 (um redeploy zera as sessões em memória). Se o Cloud Run falhar: `MODO_CONVERSA=sem_llm` por env, ou API local por túnel, ou a demo estática com `?mock=1`; último recurso, vídeo de 60 s da jornada. Depois do pitch, `--min-instances=0`.
 
 ---
 
@@ -403,25 +456,31 @@ README.md · CLAUDE.md            este arquivo · regras de construção para qu
 docs/
   spec-gi-2026-09-27.pdf         spec de produto (Gi) · fonte de verdade do produto
   09-prd.html                    PRD 1.0: spec + correções de dados + arquitetura, guardrails, evals, FinOps, contratos, plano
+  prompt-gi-2026-09-27.pdf/.md   prompt do agente (22 exemplos) e do validador (Gi) · notas-prompt-gi-2026-09-27.pdf/.md (arquitetura)
   00-briefing · 01-evidencias · 02-proposta · 03-racional · 04-arquitetura · 05-responsible-ai
-  06-design-system · 07-demo-roteiro · 08-plano · 10-contrato-dados-gold · decisoes.md · arquivo/
+  06-design-system · 07-demo-roteiro · 08-plano · 10-contrato-dados-gold · 11-finops · decisoes.md · arquivo/
 agent/                           projeto uv (Python 3.11)
   cabe_core/                     núcleo determinístico: capacidade, grupo, anomalia, ofertas, travas, acompanhar, painel,
-                                 fatura, dados (CSV | BigQuery), config, dinheiro, calendario
+                                 fatura, dados (FonteCsv | FonteBigQuery | FonteMemoria), config, dinheiro, calendario
   cabe_no_bolso/                 agent.py (root_agent) · instruction.md · tools.py · callbacks.py · runtime.py · policy.py
-  server/                        main.py (FastAPI, serve demo/) · conversa.py (modos llm/sem_llm) · sessoes.py · limites.py · guardiao.py
+                                 contexto.py · checagens.py · agente_gi.py · prompt_gi.py · validador.py (modo gi + validador)
+  server/                        main.py (FastAPI, serve demo/) · conversa.py (modos) · sessoes.py · limites.py · guardiao.py
   evals/                         golden.json (16 casos) · rodar.py · golden.evalset.json (adk eval) · resultado-*.md
-  sql/                           v_fatura.sql · v_cliente_mes.sql · v_perfil.sql (views BigQuery, não executadas)
-  tests/                         test_core.py · test_policy.py · test_guardiao.py · test_api.py · conftest.py (80 testes)
+  sql/                           v_fatura.sql · v_cliente_mes.sql · v_perfil.sql (DDL equivalente ao motor, não executado)
+  tests/                         test_core.py · test_policy.py · test_guardiao.py · test_api.py · test_dados.py · conftest.py
   pyproject.toml · uv.lock · .env.example · README.md
+camada_analitica/                camada medallion do Lucas no BigQuery: README.md · sql/silver/*.sql · sql/gold/*.sql ·
+                                 docs/{arquitetura,regras-negocio,homologacao,alinhamento-com-o-motor}.md · docs/personas-gold-*.json
 demo/                            index.html · app.css · app.js · mock/{ana,bruno,saude}.json · README.md
-config/taxas.yaml                única fonte de taxas e parâmetros (fonte, data, status por taxa)
+config/taxas.yaml                única fonte de taxas e parâmetros (fonte, data, status por taxa) · finops.yaml (preços e travas de FinOps)
 data/                            extrato_sintetico.csv.gz (SHA em README.md) · personas/*.json
-analise/                         scripts exploratórios que geraram os números (README.md); gera_mock_demo.py; persona_export.py
+analise/                         scripts exploratórios que geraram os números (README.md); gera_mock_demo.py; persona_export.py;
+                                 confere_gold_lucas.py (gold do Lucas × motor)
 scripts/download_bigquery.py     download da base (não rodar sem necessidade)
 fontes/                          case oficial, template da ficha, guia GCP, transcrições
 output/                          fichas e PPTX enviados
-deploy/deploy.sh · gerar_qr.py   Cloud Build → Artifact Registry → Cloud Run; QR com a URL final
+deploy/                          deploy.sh (Cloud Build → Artifact Registry → Cloud Run) · CHECKLIST.md (ordem do dia) ·
+                                 deploy_agent_engine.sh (opcional, adk deploy agent_engine) · gerar_qr.py
 Dockerfile · .dockerignore       imagem com contexto na raiz (config, dados, demo, agent)
 ```
 
@@ -433,7 +492,9 @@ Registro completo, com data, quem decidiu e evidência: **`docs/decisoes.md`**. 
 
 Decidido pelo time e pela organização (26–27/09): jornada = fatura do cartão; gatilho por clique no ia.i na tela da fatura, com consentimento na 1ª vez; janela de 90 dias; anomalia de renda como flag; grupos por roladas em 12 meses; fatura do mês pela reconstrução exata (fator 1,33 só projeta); pitch de 4 minutos; código no GitHub às 11h de 27/09; README com segurança, guardrails e FinOps.
 
-Pendentes de aceite do time (recomendação implementada como padrão, tudo parametrizado em `config/taxas.yaml`): prestamista fora; No limite entra sem crédito automático; caminho pela capacidade com grupo como trava (e a rolada do gatilho conta no grupo); personas e datas da demo (Ana ago/2025, Bruno set/2025); texto da Res. BCB 468/2025 a conferir; taxas com `status: conferir` (consignado CLT 3,5%, INSS 1,8%, crédito pessoal 6%) rotuladas "ilustrativa" até o time confirmar.
+Decidido em 26–27/09 à noite: nome (feature "Cabe no Bolso", chamada "ia.i, cabe no bolso"); benefício INSS como público vulnerável (consignado só com pessoa; LOAS/auxílio/maternidade fora; roadmap); prompt da Gi + validador e a arquitetura "um agente, dois modos, um validador"; No limite resolvido pelo item 2a do prompt (formas de pagar + equipe, sem crédito).
+
+Pendentes de aceite do time (recomendação implementada como padrão, tudo parametrizado em `config/taxas.yaml`): prestamista fora; caminho pela capacidade com grupo como trava (e a rolada do gatilho conta no grupo); personas e datas da demo (Ana ago/2025, Bruno set/2025); texto da Res. BCB 468/2025 a conferir; taxas com `status: conferir` (consignado CLT 3,5%, INSS 1,8%, crédito pessoal 6%) rotuladas "ilustrativa" até o time confirmar. Para a manhã: alinhamento da gold do Lucas às 8h30 (`camada_analitica/docs/alinhamento-com-o-motor.md` §3), deploy às 9h (`deploy/CHECKLIST.md`), padrão de `MODO_CONVERSA` (`gi` se os exemplos da Gi passarem ao vivo, senão `tools`).
 
 Marcado como DESCONHECIDO (não inventamos): rubrica e pesos da banca; elegibilidade real dos produtos; perda em caso de calote, interchange e funding do banco; preço por token do modelo do evento; roadmap do ia.i para a fatura.
 

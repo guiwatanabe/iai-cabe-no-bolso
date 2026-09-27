@@ -21,6 +21,7 @@ application_default_credentials.json
 
 # fora do serviço: análise exploratória, fontes do case, fichas, docs, scripts de download
 analise/
+camada_analitica/
 docs/
 fontes/
 output/

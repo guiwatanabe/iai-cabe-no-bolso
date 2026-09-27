@@ -1,0 +1,49 @@
+# GenAI FinOps do Cabe no Bolso. Única fonte de preços e limites de custo. Cada preço tem fonte e data.
+# O painel da banca (/api/painel) calcula custo_estimado a partir daqui; sem preço com fonte, o campo fica null (DESCONHECIDO).
+# Preços em USD; conversão para BRL só com câmbio com fonte (não há; o painel mostra USD).
+
+precos:
+  gemini-3.8-flash:
+    entrada_por_milhao_usd: 0.75
+    saida_por_milhao_usd: 3.75
+    vigencia: "introdutório até 31/12/2026; a partir de 01/01/2027: 1.50 / 7.50"
+    fonte: "https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing (consultado em 27/09/2026)"
+    status: confirmada
+  gemini-2.5-flash:
+    entrada_por_milhao_usd: null
+    saida_por_milhao_usd: null
+    fonte: "DESCONHECIDO; conferir na mesma página antes de usar como validador"
+    status: conferir
+  cloud_run:
+    vcpu_segundo_ativo_usd: 0.000024
+    gib_segundo_ativo_usd: 0.0000025
+    vcpu_segundo_ocioso_min_instance_usd: 0.0000025
+    gib_segundo_ocioso_min_instance_usd: 0.0000025
+    fonte: "https://cloud.google.com/run/pricing (tier 1, us-central1; consultado em 27/09/2026)"
+    status: confirmada
+  bigquery:
+    por_tib_consultado_usd: null
+    fonte: "DESCONHECIDO; conferir em https://cloud.google.com/bigquery/pricing"
+    status: conferir
+
+# Medido ao vivo em 27/09/2026 (agent/evals/resultado-2026-09-27-verificacao.md), modo tools, sem validador
+baseline_medido:
+  sessao_bruno: {chamadas: 3, tokens_entrada: 15483, tokens_saida: 352, latencia_p50_ms: 2673, latencia_p95_ms: 3990}
+  sessao_ana: {chamadas: 3, tokens_entrada: 14618, tokens_saida: 248, latencia_p50_ms: 2715, latencia_p95_ms: 3356}
+  golden_set: {chamadas: 19, tokens_entrada: 90432, tokens_saida: 1978, latencia_p50_ms: 3420, latencia_p95_ms: 5607}
+  # custo da sessão do Bruno = 15483/1e6*0.75 + 352/1e6*3.75 = US$ 0,0129
+
+# Travas de custo (onde cada uma vive)
+travas:
+  chamadas_llm_por_turno_max: 3          # agente + validador + 1 regeneração (cabe_no_bolso/runtime.py)
+  chamadas_llm_por_sessao_max: 12        # servidor devolve mensagem segura acima disso (server/main.py)
+  tool_calls_por_turno_max: 8            # before_tool (cabe_no_bolso/callbacks.py)
+  thinking: minimo                       # generate_content_config
+  acompanhamento_com_llm: false          # cabe_core.acompanhar; docs/05 §14
+  insight_por_sessao_max: 1              # card do cartão
+  mensagens_proativas_por_dia_max: 1     # spec da Gi
+  cloud_run: {min_instances_demo: 1, min_instances_fora_da_demo: 0, max_instances: 1, concurrency: 40, cpu: 1, memoria_gib: 1}
+  rate_limit_por_minuto_por_ip: 120
+  bigquery_maximum_bytes_billed: 1000000000   # 1 GB por consulta; uma consulta por cliente por sessão
+  orcamento_grupo_usd: 1000
+  alertas_orcamento_pct: [50, 80, 100]
