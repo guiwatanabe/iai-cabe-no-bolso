@@ -2,6 +2,26 @@
 
 Base de comparação: `camada_analitica/` do repositório de análise (`cabe-no-bolso-hml`, commit "Inclusão da camada analítica"), copiada sem alterações em `sql/` no commit `b7ff0b0`. As mudanças estão nos commits `5bd472b` e `aec39c4`. Nada disso foi executado no BigQuery ainda: o SQL só foi validado por sintaxe (sqlglot, dialeto BigQuery) e por uma emulação local sobre o CSV (os últimos 90 dias de 2025 fazendo o papel de `cash90_hackathon`).
 
+> [!WARNING]
+> **Revisão de 27/09, a consolidar.** Checado no BigQuery só com consultas de leitura. As tabelas silver/gold publicadas ainda são as da versão antiga (não existe `silver_ciclo_fatura`), então o SQL novo foi rodado como consulta, sem criar tabela.
+>
+> 1. **O 13º salário decide o resultado.** `cash90_hackathon` vai de 03/10 a 31/12/2025 e tem 1.600 entradas `13o salario` (R$ 4,4 mi). `07_ciclo_fatura.sql` reproduz exatamente a tabela de "Pendências" abaixo, mas quase todo o "sem falta" vem do 13º, que cai nos ciclos 2 e 3. Tirando o 13º das entradas:
+>
+>    | Grupo | Sem falta (atual) | Sem falta (sem 13º) | Recorrente (sem 13º) | Pontual (sem 13º) |
+>    |---|---:|---:|---:|---:|
+>    | SEMPRE_QUITA | 96,1% | 84,6% | 6,4% | 9,0% |
+>    | ESCORREGAO | 88,1% | 36,6% | 52,5% | 10,9% |
+>    | ROLANDO_FATURA | 80,2% | 42,4% | 50,5% | 7,0% |
+>    | NO_LIMITE | 73,5% | 58,3% | 31,4% | 10,3% |
+>
+>    O gradiente atual também mede quem recebe 13º: 311/311 do SEMPRE_QUITA, 99/101 do ESCORREGAO, 322/384 do ROLANDO_FATURA, só 68/204 do NO_LIMITE. O mesmo 13º infla `renda_mensal_estimada` e, com ela, a folga.
+> 2. **O saldo previsto começa do zero em cada ciclo.** É o fluxo líquido do ciclo, sem saldo trazido do ciclo anterior. Sem o 13º, o ESCORREGAO médio tem fluxo líquido de R$ 1.420 contra fatura de R$ 1.666, mas quita 10–11 de 12 meses, ou seja, paga com colchão que o modelo não vê. Resultado: ESCORREGAO parece pior que NO_LIMITE (falta no ciclo 3: 63,4% contra 41,7%). O texto de abertura ("faltam R$ X") não pode tratar esse número como saldo em conta.
+> 3. **O ciclo 1 é parcial.** Vai do início da janela ao primeiro pagamento de fatura (12 a 27 dias, não ~30), tem menos entradas e puxa para RECORRENTE.
+> 4. **`valor_recebimento_tipico` ainda é a mediana de todas as entradas.** O dia passou a vir da folha (R11), o valor não. Entre clientes com folha, o valor típico fica abaixo da metade da folha em 18,8% do ESCORREGAO, 28,9% do ROLANDO_FATURA, 48,8% do NO_LIMITE e 59,5% do SEMPRE_QUITA. `ofertas.py` exige `valor_recebimento_tipico_c >= valor_faltante_c` para a cobertura curta, então isso bloqueia clientes elegíveis.
+> 5. **Menores.** O comentário de `08_transacoes_resumo.sql` diz que as parcelas "já são contabilizadas em `parcelas_em_curso_c`", mas o resumo cobre todos os meses e todas as parcelas, e `parcelas_em_curso` só o último mês e sem a última parcela. A linha de `gold_capacidade_pagamento` cita R16 (25 dias), mas esse teto é aplicado em `ofertas.py` (`teto_dias`).
+>
+> **Proposta para consolidar:** (a) excluir `13o salario` das entradas do ciclo e da renda; (b) levar o saldo de um ciclo para o seguinte em vez de zerar (continua sem usar `saldo_apos`), o que muda o significado de "falta" e é decisão de modelo; (c) `valor_recebimento_tipico` pela folha, com todas as entradas como reserva; (d) rodar de novo `sql/checks/04_tipo_falta_por_grupo.sql`. Até lá, os números de tipo de falta, folga e renda desta janela estão enviesados pelo 13º.
+
 ## Por que o modelo mudou
 
 A camada original foi escrita antes da Spec do produto (27/09) e antes de existir um consumidor concreto. Três coisas fizeram o modelo mudar:
