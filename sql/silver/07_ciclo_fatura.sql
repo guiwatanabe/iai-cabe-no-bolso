@@ -76,7 +76,7 @@ fluxos_ciclo AS (
   SELECT cd.id_usuario, cd.ciclo, cd.data_fim,
     SUM(CASE WHEN UPPER(t.tipo)='E' THEN t.vlr ELSE 0 END) AS entradas,
     SUM(CASE WHEN UPPER(t.tipo)='S'
-      AND t.nom_cate_micro != 'Pagamento de fatura'
+      AND IFNULL(t.nom_cate_micro, '') != 'Pagamento de fatura'
       AND NOT (LOWER(COALESCE(t.descr,'')) LIKE '%cart credito%' AND LOWER(COALESCE(t.descr,'')) NOT LIKE '%pag%fat%')
       THEN t.vlr ELSE 0 END) AS saidas_nao_cartao
   FROM ciclos_definicao cd
@@ -93,7 +93,7 @@ cauda_historica AS (
   SELECT cd.id_usuario,
     SUM(CASE WHEN UPPER(t.tipo)='E' THEN t.vlr ELSE 0 END) AS entradas_cauda,
     SUM(CASE WHEN UPPER(t.tipo)='S'
-      AND t.nom_cate_micro != 'Pagamento de fatura'
+      AND IFNULL(t.nom_cate_micro, '') != 'Pagamento de fatura'
       AND NOT (LOWER(COALESCE(t.descr,'')) LIKE '%cart credito%' AND LOWER(COALESCE(t.descr,'')) NOT LIKE '%pag%fat%')
       THEN t.vlr ELSE 0 END) AS saidas_cauda,
     COUNT(DISTINCT cd.ciclo) AS ciclos_com_cauda
@@ -110,7 +110,7 @@ ciclo_atual_parcial AS (
     DATE_SUB(cd.data_fim, INTERVAL 5 DAY) AS data_simulada,
     SUM(CASE WHEN UPPER(t.tipo)='E' THEN t.vlr ELSE 0 END) AS entradas_parcial,
     SUM(CASE WHEN UPPER(t.tipo)='S'
-      AND t.nom_cate_micro != 'Pagamento de fatura'
+      AND IFNULL(t.nom_cate_micro, '') != 'Pagamento de fatura'
       AND NOT (LOWER(COALESCE(t.descr,'')) LIKE '%cart credito%' AND LOWER(COALESCE(t.descr,'')) NOT LIKE '%pag%fat%')
       THEN t.vlr ELSE 0 END) AS saidas_parcial
   FROM ciclos_definicao cd
@@ -147,9 +147,9 @@ resumo_ciclos AS (
   SELECT id_usuario,
     COUNTIF(falta > 0) AS ciclos_com_falta,
     COUNT(*) AS ciclos_disponiveis,
-    MAX(CASE WHEN ciclo=3 THEN saldo_previsto_vencimento END) AS saldo_previsto_vencimento_c,
-    MAX(CASE WHEN ciclo=3 THEN falta END) AS valor_faltante_c,
-    MAX(CASE WHEN ciclo=3 THEN fatura_estimada END) AS fatura_estimada_c
+    MAX(CASE WHEN ciclo=3 THEN saldo_previsto_vencimento END) AS saldo_atual,
+    MAX(CASE WHEN ciclo=3 THEN falta END) AS falta_atual,
+    MAX(CASE WHEN ciclo=3 THEN fatura_estimada END) AS fatura_atual
   FROM fatura_por_ciclo
   GROUP BY id_usuario
 )
@@ -158,11 +158,11 @@ SELECT
   dv.dia_vencimento,
   -- sem pagamento de fatura na janela: usa fim da janela - 5 dias.
   COALESCE(cap.data_simulada, DATE_SUB(j.fim_janela, INTERVAL 5 DAY)) AS data_simulada,
-  COALESCE(rc.saldo_previsto_vencimento_c, 0) AS saldo_previsto_vencimento,
-  COALESCE(rc.fatura_estimada_c, 0) AS fatura_estimada,
-  COALESCE(rc.valor_faltante_c, rc.fatura_estimada_c, 0) AS valor_faltante,
+  COALESCE(rc.saldo_atual, 0) AS saldo_previsto_vencimento,
+  COALESCE(rc.fatura_atual, 0) AS fatura_estimada,
+  COALESCE(rc.falta_atual, rc.fatura_atual, 0) AS valor_faltante,
   CASE
-    WHEN COALESCE(rc.valor_faltante_c, 0) = 0 THEN 'SEM_FALTA'
+    WHEN COALESCE(rc.falta_atual, 0) = 0 THEN 'SEM_FALTA'
     WHEN COALESCE(rc.ciclos_com_falta, 0) >= 2 THEN 'RECORRENTE'
     ELSE 'PONTUAL'
   END AS tipo_falta
