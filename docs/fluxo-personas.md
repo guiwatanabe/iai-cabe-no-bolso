@@ -1,6 +1,6 @@
 # Fluxo esperado por persona
 
-Os valores abaixo saem das ferramentas reais (`contexto_fatura` sobre `tests/fixtures/`, com `CABE_DADOS=fixtures`) e das taxas de `mcp_server/taxas.yaml`. As personas são sintéticas, modeladas nos exemplos da Spec (Ana e Bruno), até as personas reais serem escolhidas no gold depois da carga no BigQuery. Os textos das conversas são o que o prompt pede; nenhuma resposta aqui foi gerada pelo Gemini.
+Os valores abaixo saem das ferramentas reais (`contexto_fatura` sobre `tests/fixtures/`, com `CABE_DADOS=fixtures`) e das taxas de `mcp_server/taxas.yaml`. Ana, Bruno e Carla são sintéticas, modeladas nos exemplos da Spec, e seguem nas evals. As personas reais da demo, Daniela e Eduardo, saem do gold no BigQuery (ver [Personas reais](#personas-reais-do-gold)). Os textos das conversas são o que o prompt pede; nenhuma resposta aqui foi gerada pelo Gemini.
 
 [Fluxo por persona](fluxo-personas.excalidraw "width=1000 height=700")
 
@@ -63,6 +63,29 @@ Fixture `gold_rolando.json`. Hoje simulado: 10/12/2025.
 ## Carla: fora do escopo de crédito
 
 Fixture `gold_no_limite.json`: 7 pedaladas em 12 meses e renda irregular (confiança BAIXA). Fatura de R$ 1.400, vence dia 8. `ofertas_liberadas` vem vazia por duas regras de código (6+ pedaladas; confiança diferente de ALTA). O agente mostra as formas de pagar e oferece uma pessoa (Spec, exemplo C11), sem falar em crédito.
+
+## Personas reais do gold
+
+Escolhidas em 27/09/2026 com as consultas da etapa 3 do `runbook-gcp.md`; valores de `contexto_fatura` lendo `gold_contexto_agente` no BigQuery (etapa 4). Fixtures `gold_escorregao_real.json` e `gold_rolando_real.json`; ids em `CLIENTES_DEMO`. Seguem os cenários de Ana e Bruno.
+
+| Fato | Daniela (Escorregão) | Eduardo (Rolando a fatura) |
+|---|---|---|
+| `id_usuario` | `d6482fe6-8190-4692-8440-4404568dae33` | `a8d33c9c-48d1-40bf-87ad-deb94e8617e3` |
+| Hoje simulado | 15/12/2025 | 10/12/2025 |
+| Fatura / vencimento | R$ 1.956,39 / dia 20 | R$ 1.981,17 / dia 15 |
+| Mínimo / juros e outros custos se pagar o mínimo | R$ 293,46 / R$ 232,81 | R$ 297,18 / R$ 235,76 |
+| Saldo previsto no vencimento | R$ 1.697,61 | R$ 1.704,66 |
+| Falta prevista / tipo | R$ 258,78 / pontual | R$ 276,51 / recorrente |
+| Próximo recebimento | R$ 4.841,90, dia 7, 17 dias depois do vencimento | R$ 4.308,83, dia 7, 22 dias depois do vencimento |
+| Folga mensal / parcelas em curso | R$ 128,58 / R$ 343,98 | R$ 3.733,09 / R$ 698,87 |
+| Mudar vencimento | dia 8 ou dia 9 | não oferecido |
+| Oferta | `cob_01`: cheque especial por 17 dias, custo total R$ 11,73 (8% a.m.) | `cons_01`: 10 parcelas de R$ 33,25, custo total R$ 55,99 (3,5% a.m.) |
+| Ficar no rotativo por um mês | R$ 36,23 | R$ 38,71 |
+| Maiores gastos em dez/2025 (`explicar_fatura`) | parcelas R$ 343,98, delivery R$ 186,44, salão R$ 126,60 | parcelas R$ 698,87, vestuário R$ 540,74, transporte por app R$ 161,45 |
+
+Sem consentimento, as duas recebem só os fatos da fatura e nenhuma oferta.
+
+Atenção na demo: a folga de Eduardo é 13 vezes a falta. A falta é recorrente pela projeção de caixa do ciclo, mas a folga (renda − recorrentes) sugere que ele pagaria sem crédito. É a folga superestimada de `sql/docs/mudancas.md`; se o agente citar a folga, a história soa contraditória.
 
 ## Sem consentimento (qualquer persona)
 

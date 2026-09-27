@@ -17,6 +17,8 @@ from pydantic import BaseModel
 # resolve when the agent runs with CABE_DADOS=fixtures.
 CLIENTES_DEMO = {
     "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b": "",
+    "d6482fe6-8190-4692-8440-4404568dae33": "Daniela",
+    "a8d33c9c-48d1-40bf-87ad-deb94e8617e3": "Eduardo",
     "fixture-escorregao": "Ana",
     "fixture-rolando": "Bruno",
     "fixture-no-limite": "Carla",

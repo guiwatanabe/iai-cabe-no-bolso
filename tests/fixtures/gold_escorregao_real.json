@@ -1,0 +1,21 @@
+{
+  "caixa_disponivel_estimado_c": "169761",
+  "confianca_recebimento": "ALTA",
+  "data_simulada": "2025-12-15",
+  "dia_recebimento_estimado": "7",
+  "dia_vencimento": "20",
+  "dias_ate_recebimento": "17",
+  "elegivel_cobertura_curta": "true",
+  "elegivel_parcelamento": "false",
+  "fatura_estimada_c": "195639",
+  "folga_mensal_c": "12858",
+  "grupo_cliente": "ESCORREGAO",
+  "id_usuario": "d6482fe6-8190-4692-8440-4404568dae33",
+  "parcelas_em_curso_c": "34398",
+  "publico_vulneravel": "false",
+  "qtd_pedaladas_12m": "2",
+  "renda_mensal_estimada_c": "484190",
+  "tipo_falta": "PONTUAL",
+  "valor_faltante_fatura_c": "25878",
+  "valor_recebimento_tipico_c": "484190"
+}
