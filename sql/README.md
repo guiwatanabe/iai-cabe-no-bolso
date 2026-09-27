@@ -22,12 +22,14 @@ Dataset: `hackathon_dados`
 - `silver_compromissos`
 - `silver_cartao`
 - `silver_cliente_features`
+- `silver_ciclo_fatura` — projeção de caixa por ciclo de fatura (substitui o snapshot de `saldo_apos`; ver "Projeção de caixa por ciclo" em `docs/regras-negocio.md`)
+- `silver_transacoes_resumo` — compras de cartão por categoria e mês (D-90), consumida por `explicar_fatura`
 
 ### Gold
 
 - `gold_capacidade_pagamento`
 - `gold_elegibilidade`
-- `gold_contexto_agente`
+- `gold_contexto_agente` — contrato exato de `mcp_server/core/tipos.py::Contexto`; dinheiro em centavos INT64; uma linha por cliente
 
 ## Princípio de arquitetura
 
@@ -35,6 +37,8 @@ Os cálculos financeiros são realizados deterministicamente na camada analític
 
 ## Execução
 
-Execute os SQLs pela ordem numérica dentro de `sql/silver/` e depois `sql/gold/`.
+Execute os SQLs pela ordem numérica dentro de `sql/silver/` (01 a 08) e depois `sql/gold/` (01 a 03). `silver_ciclo_fatura` (07) depende de `silver_cartao` (05); `gold_capacidade_pagamento` depende de `silver_cliente_features` (06) e `silver_ciclo_fatura` (07).
+
+Os scripts em `sql/checks/*.sql` não fazem parte do pipeline de criação; são consultas de homologação para rodar manualmente contra `gold_contexto_agente` depois da carga (não foram executadas neste ciclo — ver `docs/homologacao.md`).
 
 Consulte `docs/homologacao.md` antes de interpretar as saídas Gold, pois existem limitações conhecidas no MVP.

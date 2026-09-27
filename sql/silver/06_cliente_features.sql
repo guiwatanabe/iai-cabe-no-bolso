@@ -15,9 +15,9 @@ SELECT c.id_usuario,
   h.grupo_cliente, h.qtd_pedaladas_12m, h.qtd_minimos_12m, h.ultima_pedalada,
   c.data_referencia, c.entradas_90d, c.saidas_90d, c.fluxo_90d,
   r.renda_mensal_estimada, r.dia_recebimento_estimado,
-  r.valor_recebimento_tipico, r.confianca_recebimento,
-  cp.gasto_recorrente_mensal_estimado, cp.parcelas_futuras_estimadas,
-  ca.compras_cartao_mes, ca.fatura_estimada,
+  r.valor_recebimento_tipico, r.confianca_recebimento, r.publico_vulneravel,
+  cp.gasto_recorrente_mensal_estimado, cp.parcelas_futuras_estimadas, cp.parcelas_em_curso,
+  ca.compras_cartao_mes,
   r.renda_mensal_estimada-cp.gasto_recorrente_mensal_estimado AS folga_mensal_estimada
 FROM cash c
 LEFT JOIN `batalha-time-05-xew3.hackathon_dados.silver_recebimentos` r USING(id_usuario)
