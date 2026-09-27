@@ -1,5 +1,5 @@
 # Installed in the Agent Engine container (python 3.11) by `adk deploy agent_engine`.
-google-cloud-aiplatform[adk,agent_engines]>=2.2.0
+google-cloud-aiplatform[adk,agent_engines]==2.2.0
 google-adk==2.10.0
-google-cloud-bigquery>=3.45.2
-mcp>=2.2.0
+google-cloud-bigquery==3.45.2
+mcp==2.2.0

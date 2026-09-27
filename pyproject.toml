@@ -1,7 +1,7 @@
 [project]
 name = "iai-cabe-no-bolso"
 version = "0.1.0"
-requires-python = ">=3.13"
+requires-python = "==3.11.*"
 dependencies = [
     "google-adk>=2.10.0",
     "google-cloud-aiplatform[adk,agent-engines]>=2.2.0",
@@ -12,6 +12,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "ruff>=0.16.9",
 ]
 proxy = [
     "fastapi>=0.141.1",
@@ -24,3 +25,7 @@ pythonpath = [".", "agents"]
 
 [tool.uv]
 default-groups = ["dev", "proxy"]
+
+[tool.ruff]
+line-length = 120
+src = [".", "agents"]
