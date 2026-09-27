@@ -234,7 +234,8 @@
       return clone(lista[k]);
     }
     async trace() { return clone((this.dados.trace || []).filter((t) => estado.etapas.has(t.etapa))); }
-    async painel() { const p = clone(this.dados.painel); p.turnos = clone(estado.turnos); return p; }
+    /** Painel gravado. Turnos: os que a banca percorreu; sem conversa ainda, os da jornada gravada (marcados `gravado`). */
+    async painel() { const p = clone(this.dados.painel); p.turnos = estado.turnos.length ? clone(estado.turnos) : clone(p.turnos || []); return p; }
     async saude() { return clone(this.dados.saude); }
   }
 
@@ -1014,7 +1015,7 @@
     const el = h('div', { class: 'card' }, h('h2', null, 'Checagens e validador'),
       h('p', { class: 'destaque' }, FRASE_VALIDADOR + '.'),
       h('p', { class: 'sub' }, 'Antes do validador, código: JSON, números, oferta, consentimento, tamanho, termos proibidos. O validador é um segundo agente que só aprova ou reprova; reprovado, o agente gera de novo uma vez; de novo reprovado, entra a mensagem segura.'),
-      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Validador'), h('span', { class: 'valor' }, v.ativo == null ? '—' : (v.ativo ? 'ativo' : 'desligado') + (v.modelo ? ' · ' + v.modelo : ''))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Validador'), h('span', { class: 'valor' }, v.gravado ? 'gravado · aprovado na geração dos mocks' : v.ativo == null ? '—' : (v.ativo ? 'ativo' : 'desligado') + (v.modelo ? ' · ' + v.modelo : ''))),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Turnos · com modelo'), h('span', { class: 'valor num' }, String(turnos.length) + ' · ' + String(turnos.filter((t) => t.llm).length))),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Aprovados · reprovados'), h('span', { class: 'valor num' }, String(v.aprovados != null ? v.aprovados : turnos.filter((t) => t.validador && t.validador.aprovado === true).length) + ' · ' + String(v.reprovados != null ? v.reprovados : turnos.filter((t) => t.validador && t.validador.aprovado === false).length))),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Regenerações · mensagens seguras'), h('span', { class: 'valor num' }, String(v.regeneracoes != null ? v.regeneracoes : turnos.reduce((a, t) => a + (t.regeneracoes || 0), 0)) + ' · ' + String(v.mensagens_seguras != null ? v.mensagens_seguras : turnos.filter((t) => t.mensagem_segura).length))),
@@ -1032,7 +1033,8 @@
       }));
       const vd = t.validador || {};
       let veredito;
-      if (vd.aplicado === false || vd.aprovado == null) veredito = h('span', { class: 'etiqueta etiqueta-neutra' }, vd.motivo || 'validador não aplicado');
+      if (vd.gravado && vd.aprovado) veredito = h('span', { class: 'etiqueta etiqueta-ok', title: vd.motivo || '' }, 'validador: ' + (vd.veredito || 'aprovado (gravado)'));
+      else if (vd.aplicado === false || vd.aprovado == null) veredito = h('span', { class: 'etiqueta etiqueta-neutra' }, vd.motivo || 'validador não aplicado');
       else if (vd.aprovado) veredito = h('span', { class: 'etiqueta etiqueta-ok' }, 'validador: aprovado');
       else veredito = h('span', { class: 'etiqueta etiqueta-atencao' }, 'validador: reprovado' + ((vd.violacoes || []).length ? ' · ' + vd.violacoes.map((x) => x.regra || '?').join(', ') : ''));
       const meta = [t.modo ? 'modo ' + t.modo : null, t.gatilho ? 'gatilho ' + t.gatilho : null, t.llm ? 'com modelo' : 'em código',
@@ -1051,18 +1053,52 @@
     return el;
   }
 
+  /** Aba FinOps: custo por turno e por sessão em USD com a fonte do preço (config/finops.yaml), latência e a projeção
+   *  para o piloto (só multiplicação, rótulo "projeção"). Nada é calculado aqui: os valores vêm de /api/painel.finops. */
   function painelFinops() {
     const f = (estado.painel && estado.painel.finops) || {};
     const fmt = (v, suf) => v == null ? '—' : v.toLocaleString('pt-BR') + (suf || '');
+    const usd = (v, casas) => v == null ? 'preço a conferir' : 'US$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: casas || 4, maximumFractionDigits: 6 });
+    const semLlm = !f.modelo;
+    const pp = f.por_papel || {};
+    const ag = pp.agente || {};
+    const va = pp.validador || {};
+    const proj = f.projecao_piloto || {};
+    const turnos = (f.custo_por_turno && f.custo_por_turno.length) ? f.custo_por_turno : estado.turnos;
+    const custoSessao = f.custo_acumulado_sessao_usd != null ? f.custo_acumulado_sessao_usd : f.custo_estimado;
+    const origemCusto = { 'data-origem': 'finops.custo_por_papel:total', title: 'tokens x preço de config/finops.yaml (cabe_core.finops)' };
     const el = h('div', { class: 'card' }, h('h2', null, 'FinOps e guardrails'),
-      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Modelo'), h('span', { class: 'valor' }, f.rotulo_modelo || f.modelo || (estado.modo === 'api' ? 'nenhum (sem LLM)' : 'nenhum (mock)'))),
-      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Chamadas ao modelo' + (f.chamadas_validador ? ' (agente + validador)' : '')), h('span', { class: 'valor num' }, fmt(f.chamadas_llm) + (f.chamadas_validador ? ' (' + fmt(f.chamadas_validador) + ' do validador)' : ''))),
-      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Tokens de entrada'), h('span', { class: 'valor num' }, fmt(f.tokens_entrada))),
-      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Tokens de saída'), h('span', { class: 'valor num' }, fmt(f.tokens_saida))),
-      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Latência p50 / p95'), h('span', { class: 'valor num' }, fmt(f.latencia_p50_ms, ' ms') + ' / ' + fmt(f.latencia_p95_ms, ' ms'))),
-      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Custo estimado'), h('span', { class: 'valor' }, f.custo_estimado == null ? 'sem preço com fonte em config' : String(f.custo_estimado))),
+      h('p', { class: 'sub' }, 'Custo por conversa é métrica de produto: cada chamada ao modelo é contada, medida e precificada com o preço oficial em config/finops.yaml. Acompanhamento mensal sem LLM.'),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Modelo (agente · validador)'), h('span', { class: 'valor' },
+        semLlm ? (f.rotulo_modelo || (estado.modo === 'api' ? 'nenhum (sem LLM)' : 'nenhum (mock)')) : f.modelo + ' · ' + (f.modelo_validador || f.modelo))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Chamadas ao modelo (agente · validador)'), h('span', { class: 'valor num' }, fmt(f.chamadas_llm) + ' · ' + fmt(f.chamadas_validador || 0))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Tokens de entrada (agente · validador)'), h('span', { class: 'valor num' },
+        fmt(ag.tokens_entrada != null ? ag.tokens_entrada : f.tokens_entrada) + ' · ' + fmt(va.tokens_entrada != null ? va.tokens_entrada : (f.tokens_entrada_validador || 0)))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Tokens de saída (agente · validador)'), h('span', { class: 'valor num' },
+        fmt(ag.tokens_saida != null ? ag.tokens_saida : f.tokens_saida) + ' · ' + fmt(va.tokens_saida != null ? va.tokens_saida : (f.tokens_saida_validador || 0)))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Latência p50 / p95 (por chamada)'), h('span', { class: 'valor num' }, fmt(f.latencia_p50_ms, ' ms') + ' / ' + fmt(f.latencia_p95_ms, ' ms'))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Custo desta sessão'), h('span', Object.assign({ class: 'valor num' }, origemCusto), usd(custoSessao))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Por papel (agente · validador)'), h('span', { class: 'valor num', 'data-origem': 'finops.custo_por_papel:agente|validador' },
+        usd(f.custo_agente_usd != null ? f.custo_agente_usd : ag.custo_usd) + ' · ' + usd(f.custo_validador_usd != null ? f.custo_validador_usd : va.custo_usd))),
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Preço (por 1 milhão de tokens)'), h('span', { class: 'valor num', 'data-origem': 'config:finops.yaml:precos' },
+        f.preco_entrada_por_milhao_usd != null ? usd(f.preco_entrada_por_milhao_usd, 2) + ' entrada · ' + usd(f.preco_saida_por_milhao_usd, 2) + ' saída' : (semLlm ? 'sem chamada ao modelo' : 'preço a conferir'))),
+      f.preco_fonte ? h('p', { class: 'nota' }, 'Fonte do preço: ' + f.preco_fonte + (f.vigencia ? ' · vigência: ' + f.vigencia : '')) : null,
+      h('div', { class: 'linha' }, h('span', { class: 'chave' }, h('span', { class: 'etiqueta etiqueta-neutra' }, proj.rotulo || 'projeção'), ' ' + fmt(proj.clientes) + ' clientes do piloto'),
+        h('span', { class: 'valor num', 'data-origem': 'finops.projecao:custo_usd', title: proj.base || '' }, usd(proj.custo_usd))),
+      proj.base ? h('p', { class: 'nota' }, proj.base + (proj.fonte_clientes ? ' · ' + proj.fonte_clientes : '')) : null,
+      f.teto_chamadas_por_sessao != null ? h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Teto de chamadas por sessão'), h('span', { class: 'valor num' }, fmt(f.chamadas_llm) + ' de ' + fmt(f.teto_chamadas_por_sessao) + ' (acima: mensagem segura, sem chamar o modelo)')) : null,
       f.nota ? h('p', { class: 'nota' }, f.nota) : null,
-      h('h3', null, 'Guardião (after_model_callback)'),
+      h('h3', null, 'Custo por turno'));
+    if (!turnos.length) el.append(h('p', { class: 'nota' }, 'Ainda sem turnos. Dê o consentimento e converse com o ia.i.'));
+    for (const t of turnos) {
+      const papel = !t.llm ? 'em código (0 chamadas)' : (t.chamadas_llm || 0) + ' do agente' + (t.chamadas_validador ? ' · ' + t.chamadas_validador + ' do validador' : '');
+      const meta = [papel, t.llm ? fmt(t.tokens_entrada) + ' / ' + fmt(t.tokens_saida) + ' tokens' : null, t.latencia_ms != null && t.llm ? Math.round(t.latencia_ms) + ' ms' : null,
+        t.regeneracoes ? t.regeneracoes + ' regeneração' : null, t.mensagem_segura ? 'mensagem segura' : null].filter(Boolean).join(' · ');
+      el.append(h('div', { class: 'linha' },
+        h('span', { class: 'chave' }, (t.ordem != null ? t.ordem + '. ' : '') + (ROTULO_ACAO[t.acao] || t.acao || 'turno') + ' · ' + meta),
+        h('span', { class: 'valor num', 'data-origem': 'finops.custo_por_papel:total' }, t.custo_usd == null && !t.llm ? usd(0) : usd(t.custo_usd))));
+    }
+    el.append(h('h3', null, 'Guardião (after_model_callback)'),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Números removidos'), h('span', { class: 'valor num' }, String(estado.guardiao.removidos))),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Termos bloqueados'), h('span', { class: 'valor num' }, String(estado.guardiao.termos))),
       h('div', { class: 'linha' }, h('span', { class: 'chave' }, 'Mensagens seguras (checagem ou validador)'), h('span', { class: 'valor num' }, String(estado.turnos.filter((t) => t.mensagem_segura).length))),

@@ -10,7 +10,11 @@ conversa, C3 para a recusa, C4 sem oferta, C5 para "por que veio alta", C6 para 
 núcleo, e trazem os campos do formato dela: acao, oferta_id, numeros_citados, validador (gravado, sem chamada ao
 modelo), checagens em código e o registro do turno para o painel da banca. Tudo marcado como resposta gravada.
 Para a Ana há a variante `com_pix` (contas refeitas depois de "É renda"), que demo/app.js liga ao receber
-confirmar_entrada_regular.
+confirmar_entrada_regular. Como no modo gi ao vivo, com PIX regular a confirmar o `ver_opcoes` só pergunta se o PIX é
+renda (acao nenhuma, chips "É renda" / "Não é renda"), sem oferta; a oferta aparece depois da resposta
+(confirmar_entrada_regular -> variante com_pix; nao_contar_pix -> oferta com as contas sem o PIX).
+O painel gravado traz `turnos` da jornada (checagens ok, veredito "aprovado (gravado)") e o bloco `finops` com custo
+US$ 0 pelo preço com fonte de config/finops.yaml (respostas gravadas: nenhuma chamada ao modelo).
 
 Rodar da raiz (o pacote cabe_no_bolso importa google-adk, então use o ambiente do agente):
     cd agent && uv run python ../analise/gera_mock_demo.py     (sem rede, sem LLM)
@@ -26,7 +30,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / 'agent'))
 
-from cabe_core import acompanhar, calendario, capacidade, config, dados, fatura, ofertas, painel, travas  # noqa: E402
+from cabe_core import acompanhar, calendario, capacidade, config, dados, fatura, finops, ofertas, painel, travas  # noqa: E402
 from cabe_core.dinheiro import brl  # noqa: E402
 from cabe_no_bolso import policy  # noqa: E402
 
@@ -85,7 +89,7 @@ def citados(textos: list[str]) -> list[str]:
     return out
 
 
-VALIDADOR_GRAVADO = {'aplicado': True, 'aprovado': True, 'violacoes': [], 'orientacao_para_regenerar': None, 'chamadas': 0, 'gravado': True,
+VALIDADOR_GRAVADO = {'aplicado': True, 'aprovado': True, 'violacoes': [], 'orientacao_para_regenerar': None, 'chamadas': 0, 'gravado': True, 'veredito': 'aprovado (gravado)',
                      'motivo': 'resposta gravada: aprovada na geração dos mocks (analise/gera_mock_demo.py); nenhuma chamada ao modelo'}
 
 
@@ -106,14 +110,18 @@ def checagens_gravadas(msgs: list[str], acao: str, oferta_id: str | None, ids: l
 class Turnos:
     def __init__(self):
         self.n = 0
+        self.itens: list[dict] = []
 
     def novo(self, acao: str, modo: str, gatilho: str | None, msgs: list[str], acao_agente: str, oferta_id: str | None, ids: list[str]) -> dict:
         self.n += 1
         c = checagens_gravadas(msgs, acao_agente, oferta_id, ids, modo)
-        return {'ordem': self.n, 'ts': None, 'acao': acao, 'modo': modo, 'gatilho': gatilho, 'llm': False, 'modo_conversa': 'gravado',
-                'checagens': c, 'validador': dict(VALIDADOR_GRAVADO), 'regeneracoes': 0, 'mensagem_segura': False,
-                'chamadas_llm': 0, 'tokens_entrada': 0, 'tokens_saida': 0, 'latencia_ms': None,
-                'acao_agente': acao_agente, 'oferta_id': oferta_id, 'numeros_citados': citados(msgs), 'gravado': True}
+        t = {'ordem': self.n, 'ts': None, 'acao': acao, 'modo': modo, 'gatilho': gatilho, 'llm': False, 'modo_conversa': 'gravado',
+             'checagens': c, 'validador': dict(VALIDADOR_GRAVADO), 'regeneracoes': 0, 'mensagem_segura': False,
+             'chamadas_llm': 0, 'chamadas_validador': 0, 'tokens_entrada': 0, 'tokens_saida': 0, 'latencia_ms': None,
+             'custo_usd': 0.0, 'custo_agente_usd': 0.0, 'custo_validador_usd': 0.0, 'moeda': 'USD', 'modelo': None,
+             'acao_agente': acao_agente, 'oferta_id': oferta_id, 'numeros_citados': citados(msgs), 'gravado': True}
+        self.itens.append(t)
+        return t
 
 
 def resposta(nums: Numeros, turnos: Turnos, acao_cliente: str, gatilho: str | None, mensagens: list[str], cards: list[dict],
@@ -286,14 +294,17 @@ def gerar(chave: str, p: dict, fonte, taxas: dict, contar_pix: bool = False) -> 
     chips_pix = [{'rotulo': 'É renda', 'acao': 'confirmar_entrada_regular'}, {'rotulo': 'Não é renda', 'acao': 'nao_contar_pix', 'secundario': True}]
     pix_pendente = bool(m['flags'].get('pix_regular')) and not contar_pix
     msgs, acao_vo = t['ver_opcoes']
-    if o['recomendada'] is not None:
-        if pix_pendente:   # a regra nossa das diretrizes: pergunta uma vez se o PIX é renda; nunca soma por conta própria
-            msgs = msgs[:2] + [t['pix_pergunta']]
+    chips_oferta = [{'rotulo': 'Quero pagar tudo' if o['caminho'] == 'cobertura_curta' else 'Quero essa opção', 'acao': 'confirmar'},
+                    {'rotulo': 'Prefiro continuar como está', 'acao': 'nao_quero', 'secundario': True}, chip_humano]
+    if o['recomendada'] is not None and pix_pendente:
+        # como o modo gi ao vivo (diretriz entrada_regular_a_confirmar): pergunta uma vez se o PIX é renda ANTES de qualquer
+        # oferta; acao nenhuma, só os chips "É renda" / "Não é renda". A oferta vem na resposta seguinte.
+        msgs, acao_vo = [msgs[0], t['pix_pergunta']], 'nenhuma'
+        cards = [diagnostico]
+        chips = chips_pix + [chip_humano]
+    elif o['recomendada'] is not None:
         cards = [diagnostico, {'tipo': 'comparador', 'dados': o}]
-        chips = [{'rotulo': 'Quero pagar tudo' if o['caminho'] == 'cobertura_curta' else 'Quero essa opção', 'acao': 'confirmar'},
-                 {'rotulo': 'Prefiro continuar como está', 'acao': 'nao_quero', 'secundario': True}, chip_humano]
-        if pix_pendente:
-            chips = chips_pix + chips
+        chips = chips_oferta
     elif m['cabe']:
         cards = [diagnostico]
         chips = [chip_humano]
@@ -349,9 +360,10 @@ def gerar(chave: str, p: dict, fonte, taxas: dict, contar_pix: bool = False) -> 
             'padrao': resposta(nums, turnos, 'nao_quero', None, t['nao_quero_padrao'], [aviso_registrado], [], 'nenhuma', None, ids),
             'pagar_minimo': resposta(nums, turnos, 'nao_quero', None, t['nao_quero_minimo'], [aviso_registrado], [], 'nenhuma', None, ids),
             'pagar_outro_valor': resposta(nums, turnos, 'nao_quero', None, t['nao_quero_outro'], [aviso_registrado], [], 'nenhuma', None, ids)}},
-        'nao_contar_pix': resposta(nums, turnos, 'nao_contar_pix', 'fechamento', t['pix_fora'], [],
-                                   [{'rotulo': 'Quero pagar tudo' if o['caminho'] == 'cobertura_curta' else 'Quero essa opção', 'acao': 'confirmar'},
-                                    {'rotulo': 'Prefiro continuar como está', 'acao': 'nao_quero', 'secundario': True}, chip_humano], 'nenhuma', None, ids),
+        'nao_contar_pix': (resposta(nums, turnos, 'nao_contar_pix', 'fechamento', [t['pix_fora'][0]] + t['ver_opcoes'][0][1:],
+                                    [diagnostico, {'tipo': 'comparador', 'dados': o}], chips_oferta, 'mostrar_oferta', oid, ids)
+                           if o['recomendada'] is not None else
+                           resposta(nums, turnos, 'nao_contar_pix', 'fechamento', t['pix_fora'][:1], [], [chip_humano], 'nenhuma', None, ids)),
         'texto': resposta(nums, turnos, 'texto', 'pergunta_cliente', t['texto_livre'], [],
                           [{'rotulo': 'Ver opções', 'acao': 'ver_opcoes'}, chip_humano], 'nenhuma', None, ids),
     }
@@ -380,17 +392,38 @@ def gerar(chave: str, p: dict, fonte, taxas: dict, contar_pix: bool = False) -> 
                         'numeros_validados': nums.lista()})
     nums.add(juri['numeros'])
     juri['numeros_com_origem'] = nums.lista()
-    juri['finops'] = {'chamadas_llm': 0, 'tokens_entrada': 0, 'tokens_saida': 0, 'latencia_p50_ms': None, 'latencia_p95_ms': None,
-                      'custo_estimado': None, 'modelo': None, 'rotulo_modelo': 'nenhum (mock)', 'modo': 'mock', 'modo_conversa': 'gravado', 'chamadas_validador': 0,
-                      'nota': 'modo mock: respostas gravadas, nenhuma chamada ao modelo; custo_estimado fica null porque não há preço com fonte em config/taxas.yaml'}
+    # jornada gravada que a banca percorre: consentimento (insight) -> ver_opcoes -> [PIX] -> confirmar; a demo usa estes turnos
+    # na aba Validador/FinOps enquanto a banca ainda não conversou, e os que ela percorreu depois
+    jornada = ['consentimento', 'ver_opcoes'] + (['nao_contar_pix'] if pix_pendente else []) + (['confirmar'] if plano else ['falar_com_pessoa'])
+    turnos_gravados = []
+    for k, nome in enumerate(jornada, 1):
+        tt = next((x for x in turnos.itens if x['acao'] == nome), None)
+        if tt:
+            turnos_gravados.append({**tt, 'ordem': k})
+    preco = finops.preco_de(finops.MODELO_PADRAO)
+    proj = finops.projecao(0.0)
+    juri['finops'] = {'chamadas_llm': 0, 'chamadas_validador': 0, 'tokens_entrada': 0, 'tokens_saida': 0, 'tokens_entrada_validador': 0, 'tokens_saida_validador': 0,
+                      'latencia_p50_ms': None, 'latencia_p95_ms': None, 'custo_estimado': 0.0, 'custo_acumulado_sessao_usd': 0.0, 'custo_agente_usd': 0.0,
+                      'custo_validador_usd': 0.0, 'moeda': 'USD', 'por_papel': finops.custo_por_papel({}, None, None),
+                      'custo_por_turno': [{'ordem': x['ordem'], 'acao': x['acao'], 'modo': x['modo'], 'llm': False, 'chamadas_llm': 0, 'chamadas_validador': 0,
+                                           'tokens_entrada': 0, 'tokens_saida': 0, 'latencia_ms': None, 'custo_usd': 0.0, 'custo_agente_usd': 0.0,
+                                           'custo_validador_usd': 0.0, 'regeneracoes': 0, 'mensagem_segura': False, 'gravado': True} for x in turnos_gravados],
+                      'preco_fonte': preco['fonte'], 'vigencia': preco['vigencia'], 'preco_status': preco['status'],
+                      'preco_entrada_por_milhao_usd': preco['entrada_por_milhao_usd'], 'preco_saida_por_milhao_usd': preco['saida_por_milhao_usd'],
+                      'projecao_piloto': proj, 'teto_chamadas_por_sessao': finops.teto_chamadas_por_sessao(),
+                      'modelo': None, 'modelo_validador': None, 'rotulo_modelo': 'nenhum (mock)', 'modo': 'mock', 'modo_conversa': 'gravado',
+                      'nota': ('modo mock: respostas gravadas, nenhuma chamada ao modelo, custo US$ 0. Com a API, o custo por turno e por sessão é '
+                               f'tokens x preço de config/finops.yaml ({finops.MODELO_PADRAO}: US$ {preco["entrada_por_milhao_usd"]} entrada / '
+                               f'US$ {preco["saida_por_milhao_usd"]} saída por milhão de tokens)')}
     juri['simulado_lista'] = juri.pop('simulado')
     juri['simulado'] = True
     juri['modo_conversa'] = 'gravado'
     juri['rotulo_modelo'] = 'nenhum (mock)'
-    juri['turnos'] = []   # a demo acumula os turnos das respostas gravadas que a banca percorreu
-    juri['validador'] = {'ativo': False, 'modelo': None, 'frase': FRASE_VALIDADOR, 'turnos': None, 'turnos_com_llm': 0, 'aprovados': None, 'reprovados': 0,
-                         'sem_veredito': 0, 'regeneracoes': 0, 'mensagens_seguras': 0, 'checagens_reprovadas': 0,
-                         'nota': 'respostas gravadas: aprovadas na geração dos mocks, sem chamada ao modelo nem ao validador; com a API, cada turno passa pelas checagens em código e pelo validador'}
+    juri['turnos'] = turnos_gravados   # jornada gravada; a demo troca pelos turnos que a banca percorreu quando houver
+    juri['validador'] = {'ativo': True, 'gravado': True, 'modelo': None, 'frase': FRASE_VALIDADOR, 'turnos': len(turnos_gravados), 'turnos_com_llm': 0,
+                         'aprovados': None, 'reprovados': 0, 'sem_veredito': 0, 'regeneracoes': 0, 'mensagens_seguras': 0, 'checagens_reprovadas': 0,
+                         'nota': 'respostas gravadas: cada turno foi aprovado nas checagens em código na geração dos mocks (veredito "aprovado (gravado)", '
+                                 'sem chamada ao modelo nem ao validador); com a API, cada turno passa pelas checagens em código e pelo validador'}
 
     # ---- GET /api/trace (a demo filtra pela etapa alcançada)
     t0 = datetime(anomes // 100, anomes % 100, max(f['vencimento_dia'] - 7, 1), 9, 0, tzinfo=timezone.utc)
