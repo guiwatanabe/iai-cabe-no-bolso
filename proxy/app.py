@@ -5,7 +5,7 @@ import os
 import re
 import uuid
 from functools import cache
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import vertexai
 from fastapi import Cookie, FastAPI, HTTPException, Response
@@ -13,7 +13,14 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from google.genai import errors
 from pydantic import BaseModel
 
-CLIENTES_DEMO = {"3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b"}  # persona of the demo script (hml docs/07)
+# cliente_id -> primeiro_nome. Real personas come from gold once BigQuery runs; the fixture ids only
+# resolve when the agent runs with CABE_DADOS=fixtures.
+CLIENTES_DEMO = {
+    "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b": "",
+    "fixture-escorregao": "Ana",
+    "fixture-rolando": "Bruno",
+    "fixture-no-limite": "Carla",
+}
 SESSION_TTL_S = 86400
 _UID = re.compile(r"[0-9a-f]{32}")
 
@@ -29,8 +36,23 @@ def engine():
     return vertexai.Client(project=project, location=location).agent_engines.get(name=name)
 
 
+class Liberacao(BaseModel):
+    """Simulated answer of the bank's credit service (demo parameter); mirrors mcp_server.core.tipos."""
+
+    cobertura: bool = True
+    consignado: bool = True
+    prestamista: bool = True
+
+
 class NovaSessao(BaseModel):
+    """A session is one trigger in one mode. Granting or revoking consent, or a new trigger, starts a new
+    session: state is set here, server-side, and never written by the front afterwards."""
+
     cliente_id: str
+    modo: Literal["insight", "conversa"] = "conversa"
+    gatilho: Literal["fechamento", "pagar_outro_valor", "pergunta_cliente", "acompanhamento"] = "pergunta_cliente"
+    consentimento: bool = False
+    liberacao: Liberacao = Liberacao()
 
 
 class RunRequest(BaseModel):
@@ -55,9 +77,13 @@ async def criar_sessao(body: NovaSessao, response: Response, uid: Uid = None):
         raise HTTPException(404, "Cliente não encontrado.")
     if not _UID.fullmatch(uid or ""):
         uid = uuid.uuid4().hex
-    session = await engine().async_create_session(
-        user_id=uid, state={"cliente_id": body.cliente_id}, ttl=f"{SESSION_TTL_S}s"
-    )
+    estado = {
+        "consentimento": body.consentimento,
+        "primeiro_nome": CLIENTES_DEMO[body.cliente_id],
+        "liberacao": body.liberacao.model_dump(),
+    }
+    state = {"cliente_id": body.cliente_id, "modo": body.modo, "gatilho": body.gatilho, "estado": estado}
+    session = await engine().async_create_session(user_id=uid, state=state, ttl=f"{SESSION_TTL_S}s")
     response.set_cookie("uid", uid, max_age=SESSION_TTL_S, httponly=True, secure=True, samesite="lax")
     return {"sessao_id": session["id"]}
 

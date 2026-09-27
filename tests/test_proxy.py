@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from proxy import app as proxy
@@ -35,10 +36,46 @@ def test_sessao_sets_state_and_cookie_ignoring_client_state(monkeypatch):
     resp = http.post("/sessao", json={"cliente_id": CLIENTE, "state": {"cliente_id": "outro"}})
     assert resp.json() == {"sessao_id": "s1"}
     [call] = fake.calls
-    assert call["state"] == {"cliente_id": CLIENTE}
+    assert call["state"] == {
+        "cliente_id": CLIENTE,
+        "modo": "conversa",
+        "gatilho": "pergunta_cliente",
+        "estado": {
+            "consentimento": False,
+            "primeiro_nome": "",
+            "liberacao": {"cobertura": True, "consignado": True, "prestamista": True},
+        },
+    }
     assert call["ttl"] == "86400s"
     cookie = resp.headers["set-cookie"]
     assert f"uid={call['user_id']}" in cookie and "HttpOnly" in cookie and "Secure" in cookie
+
+
+def test_sessao_passes_mode_trigger_consent_and_release(monkeypatch):
+    http, fake = client(monkeypatch)
+    body = {
+        "cliente_id": "fixture-escorregao",
+        "modo": "insight",
+        "gatilho": "fechamento",
+        "consentimento": True,
+        "liberacao": {"consignado": False},
+        "primeiro_nome": "Mallory",  # ignored: the name comes from the allowlist
+    }
+    http.post("/sessao", json=body)
+    [call] = fake.calls
+    assert call["state"]["modo"] == "insight" and call["state"]["gatilho"] == "fechamento"
+    assert call["state"]["estado"] == {
+        "consentimento": True,
+        "primeiro_nome": "Ana",
+        "liberacao": {"cobertura": True, "consignado": False, "prestamista": True},
+    }
+
+
+@pytest.mark.parametrize("campo", [{"modo": "outro"}, {"gatilho": "qualquer"}, {"consentimento": "talvez"}])
+def test_sessao_rejects_invalid_state_values(monkeypatch, campo):
+    http, fake = client(monkeypatch)
+    assert http.post("/sessao", json={"cliente_id": CLIENTE, **campo}).status_code == 422
+    assert fake.calls == []
 
 
 def test_sessao_reuses_valid_uid_and_replaces_invalid(monkeypatch):
