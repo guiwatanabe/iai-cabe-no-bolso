@@ -43,7 +43,7 @@ Especificada em `docs/04`, `agent/README.md` e `demo/README.md`. O que atravessa
 
 ## Semântica da base que o código precisa respeitar
 
-- **A fatura reconstruída depende do modo:** `integral` → `pago`; `minimo` → `pago / 0,15`; `parcial` → `pago + juros / 0,14`; arredondar para centavo. A fórmula genérica `pago + juros/0,14` (`docs/04`, `data/README.md`) só vale no parcial: nos meses integrais os "Juros pagos" são de cheque especial (erro de centenas de reais na persona) e no mínimo ela difere em 1 centavo.
+- **A fatura reconstruída depende do modo:** `integral` → `pago`; `minimo` → `pago / 0,15`; `parcial` → `pago + juros / 0,14`; arredondar para centavo. Aplicar `pago + juros/0,14` a todo mês só funciona no parcial: nos meses integrais os "Juros pagos" são de cheque especial (erro de centenas de reais na persona) e no mínimo a conta difere em 1 centavo do gabarito.
 - **`analise/persona_b.py` é a implementação de referência do gabarito:** centavos = `round(vlr * 100)`; modo pelo `descr` do "Pagamento de fatura" (`minimo`, `parcial`, senão integral); renda = todas as entradas `tipo=E` (inclui PIX); cartão = `descr` começa com `cart credito`; delivery/app = macros `Delivery` e `Transporte por app`; contas fixas = lista de subcategorias no script. Usar as mesmas definições para bater com o JSON.
 - **Armadilhas** (detalhe em `data/README.md` e `docs/01`): compra no cartão e pagamento da fatura são ambos saída (não somar); `saldo_apos` não serve como saldo; a base não carrega o não pago para a fatura seguinte (bola de neve é mecânica do mercado, não dado); PIX recebido é ambíguo (`contar_pix`: perguntar, não assumir).
 
