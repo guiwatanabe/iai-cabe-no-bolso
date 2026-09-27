@@ -147,10 +147,16 @@ def _cliente():
 def gerar_json_gemini(prompt: str) -> str:
     from google.genai import types
 
+    budget = os.getenv("THINKING_BUDGET", "0").strip()
     resp = _cliente().models.generate_content(
         model=os.getenv("MODEL", "gemini-3.5-flash"),
         contents=prompt,
-        config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json"),
+        config=types.GenerateContentConfig(
+            temperature=0.0,
+            response_mime_type="application/json",
+            # same minimum thinking budget as the agent (agent.py, THINKING_BUDGET)
+            thinking_config=types.ThinkingConfig(thinking_budget=int(budget)) if budget else None,
+        ),
     )
     return resp.text or ""
 

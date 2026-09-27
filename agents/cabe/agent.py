@@ -38,6 +38,12 @@ def instruction(ctx: ReadonlyContext) -> str:
     return f"{INSTRUCTION}\n<sessao>\nmodo: {modo}\ngatilho: {gatilho}\n</sessao>\n"
 
 
+# Gemini 3.x thinks by default: 1.7k thought tokens for a 180-token answer, ~28 s per turn with the validator
+# (measured 27/09). The numbers come from the tools, so the minimum budget is enough; empty keeps the model default.
+_BUDGET = os.getenv("THINKING_BUDGET", "0").strip()
+THINKING = types.ThinkingConfig(thinking_budget=int(_BUDGET)) if _BUDGET else None
+
+
 root_agent = LlmAgent(
     name="cabe",
     model=Gemini(
@@ -50,7 +56,7 @@ root_agent = LlmAgent(
     instruction=instruction,
     output_schema=grounding.Resposta,
     tools=[fatura_tools],
-    generate_content_config=types.GenerateContentConfig(temperature=0.1),
+    generate_content_config=types.GenerateContentConfig(temperature=0.1, thinking_config=THINKING),
     before_model_callback=guardrails.block_unsafe_input,
     before_tool_callback=guardrails.before_tool,
     after_tool_callback=grounding.register_facts,
