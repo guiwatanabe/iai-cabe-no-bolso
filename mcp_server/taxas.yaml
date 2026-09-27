@@ -1,0 +1,42 @@
+# Only source of rates and rule parameters. The LLM never estimates a rate; code reads this file.
+# Rates are fractions per month (0.14 = 14% a.m.). A product whose taxa_mes is null does not exist for the agent.
+# status: confirmada | conferir | ilustrativa (shown as illustrative in the demo) | desconhecida.
+# Origin: cabe-no-bolso-hml/config/taxas.yaml (26/09) + PRD Spec 27/09.
+
+rotativo:
+  taxa_mes: 0.14
+  minimo_pct_fatura: 0.15
+  teto_encargos_pct_divida: 1.0   # Lei 14.690/2023: juros + encargos <= 100% da dívida original
+  fonte: "Base do desafio: juros = 14% do não pago; mínimo = 15% da fatura (analise/juros.py)."
+  status: confirmada
+
+parcelamento_fatura:   # forma de pagar a própria fatura; não é crédito
+  taxa_mes: 0.094
+  prazos: [3, 6, 10, 12]
+  fonte: "BC, cartão parcelado, 194,9% a.a. em jan/2026."
+  status: confirmada
+
+cobertura_curta:       # cheque especial por poucos dias até o próximo recebimento (Escorregão)
+  taxa_mes: 0.08
+  teto_dias: 25
+  ampliacao_max_pct_limite: 0.10
+  limite_cheque_especial_c: null   # a base não tem o limite; sem limite configurado, não há ampliação
+  fonte: "Teto legal do cheque especial, 8% a.m. (Res. CMN 4.765/2019); taxa do Itaú a confirmar (Spec, questões em aberto)."
+  status: ilustrativa
+
+credito_consignado:    # crédito com garantia (Rolando a fatura)
+  taxa_mes: 0.035
+  prazos: [10, 12, 18, 24]
+  fonte: "Programa Crédito do Trabalhador (2025); médias de mercado."
+  status: conferir
+
+credito_prestamista:   # crédito com seguro prestamista (Rolando a fatura)
+  taxa_mes: null
+  prazos: [12, 18, 24]
+  fonte: "Sem taxa conhecida (Spec, questões em aberto)."
+  status: desconhecida
+
+regras:
+  parcelamento_max_por_12m: 1       # crédito do Cabe no Bolso: uma vez a cada 12 meses
+  reincidencia_meses: 3             # pedalada até 3 meses após o crédito bloqueia nova oferta
+  pedaladas_sem_credito: 6          # 6+ faturas abaixo do total em 12 meses: sem oferta de crédito

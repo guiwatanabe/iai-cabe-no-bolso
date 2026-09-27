@@ -1,0 +1,22 @@
+{
+  "_nota": "Sintético (PRD Spec, cenário 2 / Bruno) até as personas reais saírem do gold.",
+  "id_usuario": "fixture-rolando",
+  "data_simulada": "2025-12-10",
+  "grupo_cliente": "ROLANDO_FATURA",
+  "qtd_pedaladas_12m": 4,
+  "dia_vencimento": 15,
+  "fatura_estimada_c": 185000,
+  "saldo_previsto_vencimento_c": 110000,
+  "renda_mensal_estimada_c": 810500,
+  "valor_recebimento_tipico_c": 520000,
+  "dia_recebimento_estimado": 5,
+  "dias_ate_recebimento": 20,
+  "confianca_recebimento": "ALTA",
+  "folga_mensal_c": 60000,
+  "valor_faltante_c": 75000,
+  "tipo_falta": "RECORRENTE",
+  "parcelas_em_curso_c": 42000,
+  "publico_vulneravel": false,
+  "elegivel_cobertura_curta": false,
+  "elegivel_parcelamento": true
+}

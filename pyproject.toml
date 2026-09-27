@@ -7,6 +7,7 @@ dependencies = [
     "google-cloud-aiplatform[adk,agent-engines]>=2.2.0",
     "google-cloud-bigquery>=3.45.2",
     "mcp>=2.2.0",
+    "pyyaml>=6.0.3",
 ]
 
 [dependency-groups]

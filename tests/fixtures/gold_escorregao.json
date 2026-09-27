@@ -1,0 +1,22 @@
+{
+  "_nota": "Sintético (PRD Spec, cenário 1 / Ana) até as personas reais saírem do gold.",
+  "id_usuario": "fixture-escorregao",
+  "data_simulada": "2025-12-15",
+  "grupo_cliente": "ESCORREGAO",
+  "qtd_pedaladas_12m": 1,
+  "dia_vencimento": 20,
+  "fatura_estimada_c": 170000,
+  "saldo_previsto_vencimento_c": 128000,
+  "renda_mensal_estimada_c": 834900,
+  "valor_recebimento_tipico_c": 410000,
+  "dia_recebimento_estimado": 5,
+  "dias_ate_recebimento": 15,
+  "confianca_recebimento": "ALTA",
+  "folga_mensal_c": 35000,
+  "valor_faltante_c": 42000,
+  "tipo_falta": "PONTUAL",
+  "parcelas_em_curso_c": 0,
+  "publico_vulneravel": false,
+  "elegivel_cobertura_curta": true,
+  "elegivel_parcelamento": false
+}

@@ -1,0 +1,22 @@
+{
+  "_nota": "Sintético: 6+ pedaladas e renda irregular, sem oferta (Prompt C11).",
+  "id_usuario": "fixture-no-limite",
+  "data_simulada": "2025-12-03",
+  "grupo_cliente": "NO_LIMITE",
+  "qtd_pedaladas_12m": 7,
+  "dia_vencimento": 8,
+  "fatura_estimada_c": 140000,
+  "saldo_previsto_vencimento_c": 30000,
+  "renda_mensal_estimada_c": 390000,
+  "valor_recebimento_tipico_c": 90000,
+  "dia_recebimento_estimado": 12,
+  "dias_ate_recebimento": 4,
+  "confianca_recebimento": "BAIXA",
+  "folga_mensal_c": 20000,
+  "valor_faltante_c": 110000,
+  "tipo_falta": "RECORRENTE",
+  "parcelas_em_curso_c": 15000,
+  "publico_vulneravel": false,
+  "elegivel_cobertura_curta": false,
+  "elegivel_parcelamento": false
+}
