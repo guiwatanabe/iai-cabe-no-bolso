@@ -1,4 +1,4 @@
-"""Validator LLM (PRD R1–R20) and the retry-once-then-safe-message flow (PRD Notas).
+"""Validator LLM (PRD R1–R20) and the PRD safe messages. The retry-once flow lives in guardrails.
 
 The model call is injected (`gerar_json`), so tests never reach Gemini. Code checks run before this
 (grounding/guardrails); the validator only judges what needs reading: tone, prohibitions, risk signals.
@@ -206,32 +206,8 @@ def mensagem_segura(contexto: dict, modo: str, transferir: bool = False) -> dict
     }
 
 
-def _orientacao(v: Veredito) -> str:
+def orientacao(v: Veredito) -> str:
+    """Guidance for the one regeneration: the validator's sentence plus each violation."""
     partes = [v.orientacao_para_regenerar or "Revise a resposta seguindo todas as regras."]
     partes += [f'{x.regra} ({x.gravidade}): "{x.trecho}" — {x.motivo}' for x in v.violacoes]
     return "\n".join(partes)
-
-
-def com_validacao(
-    gerar: Callable[[str | None], dict],
-    contexto: dict,
-    historico: list[dict],
-    modo: str,
-    *,
-    gerar_json: Callable[[str], str] | None = None,
-) -> dict:
-    """gerar(orientacao) -> agent response. Approved -> it; rejected -> one regeneration with the
-    violations; rejected again -> safe message for the mode; any R8 -> a person, no retry."""
-    contexto = {"modo": modo, **contexto}
-    orientacao = None
-    for tentativa in (1, 2):
-        resposta = gerar(orientacao)
-        veredito = validar(contexto, historico, resposta, gerar_json)
-        if veredito.aprovado:
-            return resposta
-        regras = sorted({x.regra for x in veredito.violacoes})
-        logger.warning("validador reprovou: tentativa=%d modo=%s regras=%s", tentativa, modo, regras or ["?"])
-        if "R8" in regras:
-            return mensagem_segura(contexto, "conversa", transferir=True)
-        orientacao = _orientacao(veredito)
-    return mensagem_segura(contexto, modo)

@@ -64,7 +64,12 @@ def register_facts(tool, args, tool_context, tool_response):
         tool_context.state["fatos_contexto"] = ids  # tool key -> fid, e.g. {"fatura_valor": "f1"}
         tool_context.state["temp:contexto_ok"] = True
     rows = data.get("rows") or []
-    return {**data, "facts": visible, "rows": rows[:MAX_ROWS_TO_MODEL], "rows_truncated": len(rows) > MAX_ROWS_TO_MODEL}
+    out = {**data, "facts": visible, "rows": rows[:MAX_ROWS_TO_MODEL], "rows_truncated": len(rows) > MAX_ROWS_TO_MODEL}
+    if orientacao := tool_context.state.get("temp:orientacao"):
+        # A rejected answer is regenerated through this tool call (guardrails._regenerar_ou_segura).
+        tool_context.state["temp:orientacao"] = None
+        out["orientacao_para_regenerar"] = orientacao
+    return out
 
 
 def render_answer(resposta: Resposta, facts: dict) -> dict | None:

@@ -5,7 +5,7 @@ import pytest
 from google.adk.models import LlmRequest, LlmResponse
 from google.genai import types
 
-from cabe import agent, guardrails
+from cabe import agent, grounding, guardrails, validador
 
 FACTS = {
     "f1": {"label": "valor da fatura", "value": 1700.0, "unit": "BRL"},
@@ -35,9 +35,33 @@ def model_says(answer):
     return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=text)]))
 
 
+def finalize_raw(st, answer):
+    return guardrails.finalize_answer(SimpleNamespace(state=st), model_says(answer))
+
+
 def finalize(st, answer):
-    resp = guardrails.finalize_answer(SimpleNamespace(state=st), model_says(answer))
-    return json.loads(resp.content.parts[0].text)
+    return json.loads(finalize_raw(st, answer).content.parts[0].text)
+
+
+def is_contexto_call(resp):
+    (part,) = resp.content.parts
+    return part.function_call.name == "contexto_fatura" and part.function_call.args == {}
+
+
+APROVA = json.dumps({"aprovado": True, "violacoes": []})
+
+
+def reprova(regra):
+    violacao = {"regra": regra, "gravidade": "bloqueante", "trecho": "t", "motivo": "m"}
+    return json.dumps({"aprovado": False, "violacoes": [violacao], "orientacao_para_regenerar": "Corrija."})
+
+
+@pytest.fixture(autouse=True)
+def validator(monkeypatch):
+    """Fake validator model (never Gemini): approves unless a test scripts other verdicts."""
+    verdicts = []
+    monkeypatch.setattr(validador, "gerar_json_gemini", lambda prompt: verdicts.pop(0) if verdicts else APROVA)
+    return verdicts
 
 
 def conversa(*mensagens, acao="nenhuma", oferta_id=None):
@@ -47,7 +71,7 @@ def conversa(*mensagens, acao="nenhuma", oferta_id=None):
 SAFE_CONVERSA = {
     "mensagens": [
         "Sua fatura fechou em R$ 1.700 e vence dia 20. Veja as formas de pagar.",
-        "Se preferir, posso te passar para alguém da equipe.",
+        "Se quiser, posso te passar para alguém da equipe.",
     ],
     "acao": "mostrar_formas_de_pagar",
     "oferta_id": None,
@@ -101,9 +125,7 @@ def test_final_answer_without_contexto_forces_one_call_then_safe_message():
     st = state()
     del st["temp:contexto_ok"]
     answer = conversa("Sua fatura é [[f1]].")
-    forced = guardrails.finalize_answer(SimpleNamespace(state=st), model_says(answer))
-    (part,) = forced.content.parts
-    assert part.function_call.name == "contexto_fatura" and part.function_call.args == {}
+    assert is_contexto_call(finalize_raw(st, answer))
     assert finalize(st, answer) == SAFE_CONVERSA
 
 
@@ -163,13 +185,16 @@ def test_valid_insight_keeps_only_insight_fields():
         conversa("Sem análise de risco."),
     ],
 )
-def test_failed_check_becomes_safe_message(answer):
-    assert finalize(state(), answer) == SAFE_CONVERSA
+def test_failed_check_regenerates_once_then_safe_message(answer):
+    st = state()
+    assert is_contexto_call(finalize_raw(st, answer))
+    assert "checagem automática" in st["temp:orientacao"]
+    assert finalize(st, answer) == SAFE_CONVERSA
 
 
 def test_insight_over_160_chars_becomes_safe_message():
     answer = {"texto": "a" * 161, "botao_primario": {"rotulo": "Ver", "acao": "nenhuma"}}
-    assert finalize(state(modo="insight"), answer) == {
+    assert finalize(state(modo="insight", **{"temp:regenerado": True}), answer) == {
         "texto": "Sua fatura fechou em R$ 1.700 e vence dia 20. Veja as formas de pagar.",
         "botao_primario": {"rotulo": "Ver formas de pagar", "acao": "ver_formas_de_pagar"},
         "botao_secundario": None,
@@ -178,7 +203,7 @@ def test_insight_over_160_chars_becomes_safe_message():
 
 
 def test_insight_missing_botao_fails_schema():
-    out = finalize(state(modo="insight"), {"texto": "ok"})
+    out = finalize(state(modo="insight", **{"temp:regenerado": True}), {"texto": "ok"})
     assert out["botao_primario"]["acao"] == "ver_formas_de_pagar"
 
 
@@ -188,9 +213,12 @@ def test_offer_actions_without_consent_become_safe_message(acao):
     assert finalize(st, conversa("Veja.", acao=acao, oferta_id="cob_01")) == SAFE_CONVERSA
 
 
-def test_unreleased_oferta_id_is_nulled():
-    out = finalize(state(), conversa("Veja.", acao="mostrar_oferta", oferta_id="par_99"))
-    assert out["oferta_id"] is None and out["mensagens"] == ["Veja."]
+def test_unreleased_oferta_id_becomes_safe_message():
+    assert finalize(state(), conversa("Veja.", acao="mostrar_oferta", oferta_id="par_99")) == SAFE_CONVERSA
+
+
+def test_offer_action_without_oferta_id_becomes_safe_message():
+    assert finalize(state(), conversa("Veja.", acao="mostrar_oferta")) == SAFE_CONVERSA
 
 
 def test_pagar_outro_valor_without_offers_is_empty():
@@ -205,7 +233,7 @@ def test_pagar_outro_valor_with_offers_speaks():
 
 
 def test_safe_message_is_generic_without_bill_facts():
-    st = state(fatos_contexto={})
+    st = state(fatos_contexto={}, **{"temp:regenerado": True})
     out = finalize(st, "não é json")
     assert out["mensagens"][0] == "Sua fatura fechou. Veja as formas de pagar." and out["numeros_citados"] == []
 
@@ -215,6 +243,42 @@ def test_validator_hook_receives_checked_answer(monkeypatch):
     monkeypatch.setattr(guardrails, "validar_resposta", lambda ctx, r: seen.append(r) or r)
     finalize(state(), conversa("[[f1]]"))
     assert seen == [{"mensagens": ["R$ 1.700"], "acao": "nenhuma", "oferta_id": None, "numeros_citados": ["R$ 1.700"]}]
+
+
+def test_validator_approves():
+    assert finalize(state(), conversa("[[f1]]"))["mensagens"] == ["R$ 1.700"]
+
+
+def test_validator_rejection_regenerates_with_guidance_then_approves(validator):
+    validator[:] = [reprova("R6"), APROVA]
+    st = state()
+    assert is_contexto_call(finalize_raw(st, conversa("Vai dar certo, [[f1]].")))
+    assert "Corrija." in st["temp:orientacao"] and "R6" in st["temp:orientacao"]
+    # the guidance rides on the next contexto_fatura result, once
+    tool_ctx = SimpleNamespace(state=st)
+    out = grounding.register_facts(SimpleNamespace(name="contexto_fatura"), {}, tool_ctx, {"structuredContent": {}})
+    assert "R6" in out["orientacao_para_regenerar"] and st["temp:orientacao"] is None
+    assert finalize(st, conversa("Pela previsão, [[f1]].", acao="nenhuma"))["mensagens"] == ["Pela previsão, R$ 1.700."]
+
+
+def test_validator_rejects_twice_then_safe_message(validator):
+    validator[:] = [reprova("R6"), reprova("R12")]
+    st = state()
+    assert is_contexto_call(finalize_raw(st, conversa("[[f1]]")))
+    assert finalize(st, conversa("[[f1]]")) == SAFE_CONVERSA
+
+
+def test_validator_r8_goes_to_a_person_without_retry(validator):
+    validator[:] = [reprova("R8")]
+    out = finalize(state(), conversa("Posso te oferecer [[f3]]."))
+    assert out["acao"] == "transferir_humano" and out["oferta_id"] is None
+
+
+def test_validator_sees_rendered_values_and_gatilho(monkeypatch):
+    prompts = []
+    monkeypatch.setattr(validador, "gerar_json_gemini", lambda p: prompts.append(p) or APROVA)
+    finalize(state(gatilho="fechamento"), conversa("[[f1]]"))
+    assert '"gatilho": "fechamento"' in prompts[0] and '"valor da fatura": "R$ 1.700"' in prompts[0]
 
 
 # --- input guard + instruction ----------------------------------------------------------
