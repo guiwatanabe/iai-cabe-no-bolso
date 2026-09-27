@@ -86,19 +86,19 @@ Uma por caminho da Spec. As consultas já aplicam os filtros de `mcp_server/core
 ```bash
 # Escorregão com falta pontual e cobertura possível
 bq --project_id $P query --use_legacy_sql=false '
-SELECT id_usuario, fatura_estimada_c, saldo_previsto_vencimento_c, valor_faltante_c, dias_ate_recebimento, valor_recebimento_tipico_c
+SELECT id_usuario, fatura_estimada_c, caixa_disponivel_estimado_c, valor_faltante_fatura_c, dias_ate_recebimento, valor_recebimento_tipico_c
 FROM `batalha-time-05-xew3.hackathon_dados.gold_contexto_agente`
 WHERE grupo_cliente = "ESCORREGAO" AND tipo_falta = "PONTUAL" AND elegivel_cobertura_curta
-  AND confianca_recebimento = "ALTA" AND dias_ate_recebimento <= 25 AND valor_recebimento_tipico_c >= valor_faltante_c
-ORDER BY valor_faltante_c LIMIT 10'
+  AND confianca_recebimento = "ALTA" AND dias_ate_recebimento <= 25 AND valor_recebimento_tipico_c >= valor_faltante_fatura_c
+ORDER BY valor_faltante_fatura_c LIMIT 10'
 
 # Rolando a fatura com falta recorrente e folga para uma parcela
 bq --project_id $P query --use_legacy_sql=false '
-SELECT id_usuario, fatura_estimada_c, valor_faltante_c, folga_mensal_c, parcelas_em_curso_c, publico_vulneravel
+SELECT id_usuario, fatura_estimada_c, valor_faltante_fatura_c, folga_mensal_c, parcelas_em_curso_c, publico_vulneravel
 FROM `batalha-time-05-xew3.hackathon_dados.gold_contexto_agente`
 WHERE grupo_cliente = "ROLANDO_FATURA" AND tipo_falta = "RECORRENTE" AND elegivel_parcelamento
   AND confianca_recebimento = "ALTA" AND NOT publico_vulneravel AND folga_mensal_c > 0
-ORDER BY valor_faltante_c LIMIT 10'
+ORDER BY valor_faltante_fatura_c LIMIT 10'
 ```
 
 Prefira valores parecidos com os da Spec (fatura entre R$ 1.500 e R$ 2.000) e, no Rolando, parcelas em curso acima de zero. Para cada persona escolhida:

@@ -23,14 +23,14 @@ class Contexto(BaseModel):
     qtd_pedaladas_12m: int  # decision only, never shown to the model
     dia_vencimento: int
     fatura_estimada_c: int  # 1.33 x card purchases of the previous month
-    saldo_previsto_vencimento_c: int  # cycle cash projection, not saldo_apos
+    caixa_disponivel_estimado_c: int  # cycle net cash up to the due day (not the account balance, not saldo_apos)
     renda_mensal_estimada_c: int
     valor_recebimento_tipico_c: int
     dia_recebimento_estimado: int
     dias_ate_recebimento: int  # from the due day to the next expected receipt
     confianca_recebimento: Literal["ALTA", "MEDIA", "BAIXA"]
     folga_mensal_c: int  # renda - recorrentes (medallion definition, known to be overstated)
-    valor_faltante_c: int  # max(fatura - saldo previsto, 0)
+    valor_faltante_fatura_c: int  # part of the bill the cycle cash does not cover: max(fatura - max(caixa, 0), 0)
     tipo_falta: Literal["SEM_FALTA", "PONTUAL", "RECORRENTE"]
     parcelas_em_curso_c: int  # monthly amount of installments already running
     publico_vulneravel: bool  # INSS beneficiary in the window

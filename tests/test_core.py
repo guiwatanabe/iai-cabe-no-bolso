@@ -94,7 +94,7 @@ def test_state_filters_empty_the_list(nome, estado):
         ("escorregao", {"dias_ate_recebimento": 26}),
         ("escorregao", {"qtd_pedaladas_12m": 6}),
         ("escorregao", {"confianca_recebimento": "MEDIA"}),
-        ("escorregao", {"tipo_falta": "SEM_FALTA", "valor_faltante_c": 0}),
+        ("escorregao", {"tipo_falta": "SEM_FALTA", "valor_faltante_fatura_c": 0}),
         ("escorregao", {"valor_recebimento_tipico_c": 41999}),
         ("escorregao", {"elegivel_cobertura_curta": False}),
         ("rolando", {"elegivel_parcelamento": False}),
