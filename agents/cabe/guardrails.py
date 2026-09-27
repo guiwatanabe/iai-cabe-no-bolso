@@ -9,6 +9,7 @@ import logging
 import re
 
 from google.adk.models import LlmResponse
+from google.adk.utils.content_utils import SKIP_THOUGHT_SIGNATURE_VALIDATOR
 from google.genai import types
 from pydantic import ValidationError
 
@@ -216,8 +217,12 @@ def _regenerar_ou_segura(state, orientacao: str) -> dict | None:
 
 
 def _chamar_contexto() -> LlmResponse:
-    call = types.FunctionCall(name=CONTEXTO_TOOL, args={})
-    return LlmResponse(content=types.Content(role="model", parts=[types.Part(function_call=call)]))
+    # Gemini 3 rejects a function call without a thought signature in the turn's history; this one is ours.
+    call = types.Part(
+        function_call=types.FunctionCall(name=CONTEXTO_TOOL, args={}),
+        thought_signature=SKIP_THOUGHT_SIGNATURE_VALIDATOR,
+    )
+    return LlmResponse(content=types.Content(role="model", parts=[call]))
 
 
 def _historico(callback_context) -> list[dict]:
