@@ -67,6 +67,20 @@ exists gcloud builds triggers describe deploy-main --region "$REGION" --project 
   gcloud builds triggers create github --name deploy-main --region "$REGION" --project "$PROJECT" \
     --repository "projects/$PROJECT/locations/$REGION/connections/$CONNECTION/repositories/$NAME" \
     --branch-pattern '^main$' --build-config cloudbuild.yaml \
-    --service-account "projects/$PROJECT/serviceAccounts/$BUILD_SA"
+    --service-account "projects/$PROJECT/serviceAccounts/$BUILD_SA" \
+    --require-approval  # every collaborator can push to main; a human approves each deploy
 
-echo "Done. Push to main (or: gcloud builds triggers run deploy-main --region $REGION --branch main)."
+# echo "== Budget alert"
+# Emails billing admins at 50/90/100% of BUDGET_USD. Needs billing.budgets.create on the billing account.
+# BUDGET_USD=${BUDGET_USD:-50}
+# BILLING=$(gcloud billing projects describe "$PROJECT" --format='value(billingAccountName)' | cut -d/ -f2)
+# gcloud services enable billingbudgets.googleapis.com --project "$PROJECT"
+# if [[ -z $(gcloud billing budgets list --billing-account "$BILLING" --filter="displayName=$NAME" --format='value(name)') ]]; then
+#  gcloud billing budgets create --billing-account "$BILLING" --display-name "$NAME" \
+#    --budget-amount "${BUDGET_USD}USD" --filter-projects "projects/$PROJECT" \
+#    --threshold-rule percent=0.5 --threshold-rule percent=0.9 --threshold-rule percent=1.0 ||
+#    echo ">> Budget not created (no billing permission?). Create it in the console: Billing > Budgets & alerts."
+#fi
+
+# echo "Done. Push to main, then approve the build (Cloud Build > History), or:"
+# echo "   gcloud builds triggers run deploy-main --region $REGION --branch main"
