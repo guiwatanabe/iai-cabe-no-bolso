@@ -42,7 +42,7 @@ Rotativo com 65% de inadimplência (BC, julho de 2026) e juros limitados a 100% 
 | Real (da base) | Simulado (declarado na tela) |
 |---|---|
 | Cliente `3e7d20b2`, seu extrato de 2025, salário e dia, contas fixas, gasto no cartão por categoria | A data de hoje |
-| Fatura de cada mês reconstruída (`pago + juros/0,14`) | Taxa do produto de saída (parâmetro, fonte BC) |
+| Fatura de cada mês reconstruída a partir do pagamento e dos juros (regra por modo em `01-evidencias-base.md` §3) | Taxa do produto de saída (parâmetro, fonte BC) |
 | Modo de pagamento (integral/parcial/mínimo) e juros de cada mês | Elegibilidade ao consignado e ao crédito pessoal |
 | Rotativo a 14% a.m. | Resposta do cliente sobre o PIX ou sobre um gasto atípico |
 | Sequência de 4 faturas roladas (fev–mai) | Os meses seguintes com o plano aplicado |

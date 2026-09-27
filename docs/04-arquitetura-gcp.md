@@ -39,7 +39,7 @@ flowchart LR
 - Tabela fornecida: `batalha-time-05-xew3.hackathon_dados.extrato_sintetico` (us-central1). Espelho local: `data/extrato_sintetico.csv.gz`.
 - Views a criar (uma consulta agregada por cliente, nunca em loop):
   - `v_cliente_mes`: renda, salário e dia, PIX recebido, contas fixas, gasto no cartão, delivery+app, por `id_usuario` e `anomes`.
-  - `v_fatura`: pagamento de fatura por mês com `modo` (integral/parcial/mínimo), juros do mês, `fatura_estimada = pago + juros/0,14`.
+  - `v_fatura`: pagamento de fatura por mês com `modo` (integral/parcial/mínimo), juros do mês e `fatura_estimada` por modo: integral = `pago`; mínimo = `pago/0,15`; parcial = `pago + juros/0,14`. Nos meses integrais, os juros são de cheque especial e não entram na fatura.
   - `v_perfil`: flags de perfil (CLT, INSS, financiamento, aluguel pago/recebido), meses rolados, maior sequência, grupo A/B/C, causa.
 - Em dev e nos testes, as mesmas agregações rodam sobre o CSV (pandas). A interface das ferramentas é a mesma.
 

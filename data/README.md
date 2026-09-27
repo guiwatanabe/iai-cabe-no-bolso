@@ -29,7 +29,7 @@ Use este arquivo para análise, testes e desenvolvimento. Não reexecute o downl
 ## Semântica descoberta (detalhe em `docs/01-evidencias-base.md`)
 
 - Pagamento de fatura: `nom_cate_micro = "Pagamento de fatura"`; `descr` contém `integral`, `parcial` ou `minimo`.
-- Rotativo: 14% ao mês sobre o não pago; mínimo = 15% da fatura; `fatura = pago + juros/0,14`.
+- Rotativo: 14% ao mês sobre o não pago; mínimo = 15% da fatura. Fatura por modo: integral = `pago`; mínimo = `pago/0,15`; parcial = `pago + juros/0,14`.
 - `Juros pagos` mistura rotativo (meses parciais/mínimos) e cheque especial (~1,3% do saldo negativo, meses de fatura inteira).
 - Compras no cartão (`descr` começa com `cart credito`) e pagamento da fatura aparecem ambos como saída: não somar os dois.
 - PIX recebido (`Recebimentos diversos`) pode ser renda, reembolso ou transferência própria: perguntar, não assumir.

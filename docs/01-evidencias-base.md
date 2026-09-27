@@ -28,7 +28,7 @@ Marcação: **[F]** fato medido na base · **[I]** inferência · **[H]** hipót
 
 [F] **Rotativo a 14% ao mês.** No pagamento mínimo, o mínimo é 15% da fatura e os juros do mês são exatamente 14% do que ficou sem pagar (p10 e mediana da razão = 0,140). No parcial, a fração paga fica entre 50% e 80% (mediana 63%) e os juros seguem os mesmos 14% do não pago.
 
-[F] **Reconstrução da fatura:** `fatura = pago + juros / 0,14` (no mínimo, também `= pago / 0,15`). Isso permite a fatura real de qualquer mês, sem inventar valor.
+[F] **Reconstrução da fatura:** no parcial, `fatura = pago + juros / 0,14`; no mínimo, `fatura = pago / 0,15`; na fatura inteira, `fatura = pago`, porque os juros desses meses são de cheque especial (parágrafo abaixo). Isso permite a fatura real de qualquer mês, sem inventar valor.
 
 [F] **"Juros pagos" mistura dois produtos** com os mesmos rótulos (`debito conta juros lim`, `debito conta juros saldo dev`): rotativo do cartão nos meses de pagamento parcial ou mínimo (R$ 447 mil) e cheque especial nos 1.104 meses de fatura paga inteira com juros (R$ 95 mil). Nesses meses, 100% têm saldo negativo e o juro é ~1,3% do saldo negativo mínimo do mês (mediana 0,0132; correlação −0,99).
 
