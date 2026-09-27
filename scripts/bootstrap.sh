@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # One-time, idempotent GCP setup for CI/CD: Artifact Registry, service accounts,
 # IAM, BigQuery analytics dataset, GitHub connection and the Cloud Build trigger.
+# The Agent Engine instance itself is created by the first build (scripts/agent_engine.py).
 # Re-run it after authorizing the GitHub connection in the browser.
 set -euo pipefail
 
@@ -10,6 +11,7 @@ NAME=iai-cabe-no-bolso
 GITHUB_REPO=https://github.com/guiwatanabe/$NAME.git
 CONNECTION=github
 RUN_SA=cabe-run@$PROJECT.iam.gserviceaccount.com
+AGENT_SA=cabe-agent@$PROJECT.iam.gserviceaccount.com
 BUILD_SA=cabe-build@$PROJECT.iam.gserviceaccount.com
 PROJECT_NUMBER=$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')
 
@@ -19,32 +21,39 @@ bind() { gcloud projects add-iam-policy-binding "$PROJECT" --member="serviceAcco
 echo "== APIs"
 gcloud services enable --project "$PROJECT" \
   run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
-  secretmanager.googleapis.com aiplatform.googleapis.com bigquery.googleapis.com iam.googleapis.com
+  secretmanager.googleapis.com aiplatform.googleapis.com bigquery.googleapis.com iam.googleapis.com \
+  cloudresourcemanager.googleapis.com logging.googleapis.com monitoring.googleapis.com \
+  cloudtrace.googleapis.com telemetry.googleapis.com
 
 echo "== Artifact Registry"
 exists gcloud artifacts repositories describe "$NAME" --location "$REGION" --project "$PROJECT" ||
   gcloud artifacts repositories create "$NAME" --repository-format=docker --location "$REGION" --project "$PROJECT"
 
 echo "== Service accounts"
-for sa in cabe-run cabe-build; do
+for sa in cabe-run cabe-build cabe-agent; do
   exists gcloud iam service-accounts describe "$sa@$PROJECT.iam.gserviceaccount.com" --project "$PROJECT" ||
     gcloud iam service-accounts create "$sa" --project "$PROJECT"
 done
 
-# Runtime: Gemini on Vertex, BigQuery queries, future secrets.
-for role in roles/aiplatform.user roles/bigquery.jobUser roles/secretmanager.secretAccessor; do bind "$RUN_SA" "$role"; done
+# Cloud Run proxy: query Agent Engine, future secrets.
+for role in roles/aiplatform.user roles/secretmanager.secretAccessor; do bind "$RUN_SA" "$role"; done
 
-# Build: deploy Cloud Run (incl. public IAM), push images, write logs, act as the runtime SA.
-for role in roles/run.admin roles/logging.logWriter; do bind "$BUILD_SA" "$role"; done
+# Agent Engine runtime: Gemini on Vertex + managed sessions, BigQuery queries, logs.
+for role in roles/aiplatform.user roles/bigquery.jobUser roles/logging.logWriter; do bind "$AGENT_SA" "$role"; done
+
+# Build: deploy Cloud Run (incl. public IAM) and Agent Engine, push images, write logs, act as both runtime SAs.
+for role in roles/run.admin roles/aiplatform.user roles/logging.logWriter; do bind "$BUILD_SA" "$role"; done
 gcloud artifacts repositories add-iam-policy-binding "$NAME" --location "$REGION" --project "$PROJECT" \
   --member="serviceAccount:$BUILD_SA" --role=roles/artifactregistry.writer --quiet >/dev/null
-gcloud iam service-accounts add-iam-policy-binding "$RUN_SA" --project "$PROJECT" \
-  --member="serviceAccount:$BUILD_SA" --role=roles/iam.serviceAccountUser --quiet >/dev/null
+for sa in "$RUN_SA" "$AGENT_SA"; do
+  gcloud iam service-accounts add-iam-policy-binding "$sa" --project "$PROJECT" \
+    --member="serviceAccount:$BUILD_SA" --role=roles/iam.serviceAccountUser --quiet >/dev/null
+done
 
 echo "== BigQuery analytics dataset"
 exists bq --project_id "$PROJECT" show agent_logs || bq --project_id "$PROJECT" mk --location=US agent_logs
 bq --project_id "$PROJECT" query --nouse_legacy_sql --quiet \
-  "GRANT \`roles/bigquery.dataEditor\` ON SCHEMA \`$PROJECT.agent_logs\` TO 'serviceAccount:$RUN_SA'" >/dev/null
+  "GRANT \`roles/bigquery.dataEditor\` ON SCHEMA \`$PROJECT.agent_logs\` TO 'serviceAccount:$AGENT_SA'" >/dev/null
 
 echo "== GitHub connection"
 # The Cloud Build service agent stores the GitHub OAuth token in Secret Manager.

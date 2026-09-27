@@ -1,4 +1,4 @@
-# Triggered on push to main: test -> build -> push -> deploy.
+# Triggered on push to main: test -> deploy agent to Agent Engine + build proxy image -> deploy proxy to Cloud Run.
 # Resources (AR repo, service accounts, trigger) come from scripts/bootstrap.sh.
 substitutions:
   _REGION: us-central1
@@ -12,34 +12,47 @@ steps:
     entrypoint: uv
     args: [run, --frozen, pytest, -q]
 
+  # Agent, config (agents/cabe/.agent_engine_config.json) and sessions live in Agent Engine.
+  # The resource name is handed to the Cloud Run step through the shared /workspace.
+  - id: agent
+    name: ghcr.io/astral-sh/uv:0.12-python3.14-trixie-slim
+    waitFor: [test]
+    entrypoint: bash
+    args:
+      - -euc
+      - |
+        engine=$$(uv run --frozen python scripts/agent_engine.py $PROJECT_ID $_REGION)
+        uv run --frozen adk deploy agent_engine --project=$PROJECT_ID --region=$_REGION --agent_engine_id="$$engine" agents/cabe
+        echo "$$engine" > agent_engine
+
   - id: build
     name: gcr.io/cloud-builders/docker
+    waitFor: [test]
     args: [build, -t, $_IMAGE, .]
 
   - id: push
     name: gcr.io/cloud-builders/docker
+    waitFor: [build]
     args: [push, $_IMAGE]
 
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - run
-      - deploy
-      - $_SERVICE
-      - --image=$_IMAGE
-      - --region=$_REGION
-      - --service-account=$_RUNTIME_SA
-      - --allow-unauthenticated
-      - --min-instances=1
-      - --max-instances=1  # sessions are in memory
-      - --memory=1Gi
-      - --cpu-boost
-      - --no-cpu-throttling  # analytics plugin writes to BQ in the background
-      - --set-env-vars=GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=global,MODEL=gemini-3.5-flash,BQ_MAX_BYTES_BILLED=1000000000,BQ_ANALYTICS_DATASET=agent_logs
+      - -euc
+      - |
+        gcloud run deploy $_SERVICE \
+          --image=$_IMAGE \
+          --region=$_REGION \
+          --service-account=$_RUNTIME_SA \
+          --allow-unauthenticated \
+          --min-instances=1 \
+          --cpu-boost \
+          --set-env-vars=AGENT_ENGINE=$$(cat agent_engine)
       # Secrets: create in Secret Manager, then map to env vars, e.g.
-      # - --set-secrets=API_KEY=api-key:latest
+      # --set-secrets=API_KEY=api-key:latest
 
+timeout: 1800s  # Agent Engine builds its own container image on deploy
 options:
   dynamicSubstitutions: true  # _IMAGE references other substitutions
   logging: CLOUD_LOGGING_ONLY  # required with a user-managed build SA

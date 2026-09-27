@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
     "google-adk>=2.10.0",
+    "google-cloud-aiplatform[adk,agent-engines]>=2.2.0",
     "google-cloud-bigquery>=3.45.2",
     "mcp>=2.2.0",
 ]
@@ -12,6 +13,14 @@ dependencies = [
 dev = [
     "pytest>=9.1.1",
 ]
+proxy = [
+    "fastapi>=0.141.1",
+    "google-cloud-aiplatform>=2.2.0",
+    "uvicorn>=0.54.0",
+]
 
 [tool.pytest.ini_options]
 pythonpath = [".", "agents"]
+
+[tool.uv]
+default-groups = ["dev", "proxy"]

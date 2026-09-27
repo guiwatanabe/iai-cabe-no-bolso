@@ -31,6 +31,8 @@ root_agent = LlmAgent(
     name="cabe",
     model=Gemini(
         model=os.getenv("MODEL", "gemini-3.5-flash"),
+        # Agent Engine sets GOOGLE_CLOUD_LOCATION to its own region; the model is served from global.
+        client_kwargs={"location": "global"},
         # Retries 408/429/5xx; short cap so a demo request never hangs long.
         retry_options=types.HttpRetryOptions(attempts=3, max_delay=8),
     ),

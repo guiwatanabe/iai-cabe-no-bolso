@@ -3,9 +3,14 @@
 Agente em pt-BR (Google ADK + Gemini no Vertex AI) que responde perguntas usando apenas dados do BigQuery,
 servidos por um MCP server com ferramentas curadas e somente leitura.
 
-- `agents/cabe/`: agente ADK com guardrails e grounding (o modelo cita fatos como `[[f1]]`, o código renderiza os valores)
-- `mcp_server/`: MCP server (stdio) com queries parametrizadas e limite de bytes faturados
-- `tests/`: testes do grounding
+O agente roda no Vertex AI Agent Engine (agente, config e sessões gerenciadas); o serviço no Cloud Run
+é só um proxy com as mesmas rotas do `adk api_server`.
+
+- `agents/cabe/`: agente ADK com guardrails e grounding (o modelo cita fatos como `[[f1]]`, o código renderiza os valores).
+  `.agent_engine_config.json` e `requirements.txt` definem o deploy no Agent Engine
+- `mcp_server/`: MCP server (stdio) com queries parametrizadas e limite de bytes faturados; vai junto com o agente
+- `proxy/`: FastAPI que repassa sessões e `/run` / `/run_sse` para o Agent Engine
+- `tests/`: testes do grounding e do proxy
 
 ## Rodar local
 
@@ -14,13 +19,20 @@ cp agents/cabe/.env.example agents/cabe/.env   # ajuste GOOGLE_CLOUD_PROJECT
 gcloud auth application-default login
 uv sync
 uv run pytest
-uv run adk web agents          # UI em http://localhost:8000
+uv run adk web agents          # agente local, UI em http://localhost:8000
+
+# proxy local apontando para o agente já publicado
+AGENT_ENGINE=projects/PROJ/locations/us-central1/reasoningEngines/ID uv run uvicorn proxy.app:app --port 8080
 ```
 
 ## Deploy
 
-Push em `main` dispara um build no Cloud Build (`cloudbuild.yaml`): pytest → imagem → Artifact Registry → Cloud Run.
-Cada build precisa de aprovação em Cloud Build > History.
+Push em `main` dispara um build no Cloud Build (`cloudbuild.yaml`): pytest → `adk deploy agent_engine`
+(cria a instância `cabe` no primeiro build, via `scripts/agent_engine.py`) e imagem do proxy → Cloud Run
+com `AGENT_ENGINE` apontando para a instância. Cada build precisa de aprovação em Cloud Build > History.
+
+Env vars do agente ficam em `agents/cabe/.agent_engine_config.json`. Um `agents/cabe/.env` local substitui
+todas elas num deploy manual, então publique pelo CI.
 
 Setup único do GCP (idempotente): `scripts/bootstrap.sh`.
 
