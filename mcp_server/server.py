@@ -59,7 +59,7 @@ FATURA: Campos = {
     "minimo_c": ("fatura_minimo", "pagamento mínimo da fatura atual", "BRL"),
     "encargos_se_pagar_minimo_c": (
         "fatura_encargos_se_pagar_minimo",
-        "encargos de um mês de rotativo se pagar só o mínimo da fatura atual",
+        "juros e outros custos do próximo mês se pagar só o mínimo da fatura atual",
         "BRL",
     ),
 }
