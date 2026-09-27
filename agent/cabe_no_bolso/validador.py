@@ -55,14 +55,16 @@ def config_geracao(modelo: str) -> types.GenerateContentConfig:
 
 
 def criar_validador(modelo: str | None = None) -> LlmAgent:
-    modelo = modelo or modelo_configurado()
-    return LlmAgent(name=NOME, model=modelo, description="Revisa a resposta do Cabe no Bolso antes de ela chegar ao cliente.",
+    modelo = agent_mod.nome_do_modelo(modelo) if modelo else modelo_configurado()
+    return LlmAgent(name=NOME, model=agent_mod.modelo_gemini(modelo),      # Gemini(location=global, retentativas curtas)
+                    description="Revisa a resposta do Cabe no Bolso antes de ela chegar ao cliente.",
                     instruction=INSTRUCAO_FIXA, tools=[], generate_content_config=config_geracao(modelo))
 
 
 def _runner(modelo: str) -> Runner:
     if modelo not in _RUNNERS:
-        _RUNNERS[modelo] = Runner(app_name=APP, agent=criar_validador(modelo), session_service=InMemorySessionService())
+        # Mesmo App/plugins do agente (o analytics do BigQuery, quando ligado, vê também o validador); sem ferramentas aqui.
+        _RUNNERS[modelo] = Runner(app=agent_mod.criar_app(criar_validador(modelo), nome=APP), session_service=InMemorySessionService())
     return _RUNNERS[modelo]
 
 

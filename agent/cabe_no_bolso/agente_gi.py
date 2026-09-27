@@ -61,7 +61,7 @@ def after_model(callback_context, llm_response):
     callbacks._finops(st, llm_response, latencia)
     um = getattr(llm_response, "usage_metadata", None)
     n_texto = sum(len(p.text or "") for p in ((llm_response.content.parts if llm_response.content else None) or []) if p.text)
-    callbacks._log("modelo", sessao=callbacks._sessao_id(callback_context), modo="gi", latencia_ms=latencia, chamada_de_ferramenta=False,
+    callbacks._log("modelo", sessao=callbacks._sessao_id(callback_context), modo="gi", papel=callbacks.PAPEL_LLM.get(), latencia_ms=latencia, chamada_de_ferramenta=False,
                    tokens_entrada=int(getattr(um, "prompt_token_count", 0) or 0), tokens_saida=int(getattr(um, "candidates_token_count", 0) or 0))
     trace = list(st.get("trace") or [])
     trace.append({"ordem": len(trace) + 1, "etapa": "modelo", "ferramenta": "modelo", "argumentos": {"modelo": getattr(llm_response, "model_version", None), "modo": "gi"},
@@ -72,10 +72,10 @@ def after_model(callback_context, llm_response):
 
 
 def criar_agente_gi(modelo: str | None = None) -> LlmAgent:
-    modelo = modelo or agent_mod.modelo_configurado()
+    modelo = agent_mod.nome_do_modelo(modelo) if modelo else agent_mod.modelo_configurado()
     return LlmAgent(
         name=NOME,
-        model=modelo,
+        model=agent_mod.modelo_gemini(modelo),      # Gemini(location=global, retentativas curtas): agent.modelo_gemini
         description="Cabe no Bolso no modo da Gi: conversa e insight a partir de um contexto já calculado; responde em JSON.",
         instruction=instrucao,
         tools=[],

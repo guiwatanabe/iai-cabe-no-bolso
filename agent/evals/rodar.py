@@ -18,7 +18,8 @@ Dois conjuntos e dois modos de conversa:
 
 Por caso: aprovado/reprovado (esperado), checagens em código, veredito do validador, latência por chamada (agente e
 validador), tokens, ação/oferta_id (modo gi) ou trajetória (modo tools). No fim: p50/p95, chamadas e tokens por modelo.
-FinOps: --limite-chamadas vale por agente (agente da conversa e validador contam separados).
+FinOps: --limite-chamadas vale por agente (agente da conversa e validador contam separados). Cada caso traz o custo em USD
+(tokens x preço com fonte de config/finops.yaml, agente e validador separados; cabe_core.finops) e o rodapé soma a rodada.
 """
 from __future__ import annotations
 
@@ -36,8 +37,24 @@ FERRAMENTAS_DE_DADOS = ("analisar_fatura", "listar_ofertas", "detalhar_fatura", 
 FERRAMENTAS_DO_AGENTE = ("registrar_consentimento", "analisar_fatura", "listar_ofertas", "detalhar_fatura",
                          "simular_continuar_no_rotativo", "confirmar_plano", "encaminhar_humano")
 VAZIO = {"trajetoria": [], "cards": [], "latencias_ms": [], "latencias_validador_ms": [], "tokens_entrada": 0, "tokens_saida": 0, "chamadas": 0,
-         "chamadas_validador": 0, "texto": "", "fidelidade": 0, "numeros_citados": 0, "numeros_barrados": 0, "termos_barrados": [],
+         "chamadas_validador": 0, "tokens_entrada_validador": 0, "tokens_saida_validador": 0, "custo_usd": 0.0, "custo_agente_usd": 0.0,
+         "custo_validador_usd": 0.0, "texto": "", "fidelidade": 0, "numeros_citados": 0, "numeros_barrados": 0, "termos_barrados": [],
          "barrados_detalhe": [], "duracao_ms": 0, "validador": "—", "checagens": "—", "acao": "—"}
+
+
+def custo_de(r: dict, modelo: str) -> dict:
+    """Custo em USD de um caso (agente e validador separados) pelo preço de config/finops.yaml. Nunca inventa preço."""
+    from cabe_core import finops
+    from cabe_no_bolso import validador as validador_mod
+    c = finops.custo_por_papel({"chamadas_llm": r.get("chamadas", 0), "chamadas_validador": r.get("chamadas_validador", 0),
+                                "tokens_entrada": r.get("tokens_entrada", 0), "tokens_saida": r.get("tokens_saida", 0),
+                                "tokens_entrada_validador": r.get("tokens_entrada_validador", 0), "tokens_saida_validador": r.get("tokens_saida_validador", 0)},
+                               modelo, validador_mod.modelo_configurado())
+    return {"custo_usd": c["total"]["custo_usd"], "custo_agente_usd": c["agente"]["custo_usd"], "custo_validador_usd": c["validador"]["custo_usd"]}
+
+
+def usd(v) -> str:
+    return "—" if v is None else f"{v:.4f}"
 
 
 def carregar(nome: str = "golden.json") -> dict:
@@ -158,7 +175,7 @@ def rodar_caso_modelo(caso: dict, clientes: dict, modelo: str) -> dict:
     if est.get("consentimento"):
         runtime.consentir(sid, True, modelo=modelo)
     n_trace0 = len(runtime.trace(sid, modelo=modelo))
-    textos, cards, ferramentas, lat, latv, tin, tout, chamadas, chv, erros, vals, acoes = [], [], [], [], [], 0, 0, 0, 0, [], [], []
+    textos, cards, ferramentas, lat, latv, tin, tout, tinv, toutv, chamadas, chv, erros, vals, acoes = [], [], [], [], [], 0, 0, 0, 0, 0, 0, [], [], []
     guard = {"removidos": [], "termos_bloqueados": [], "substituicoes": 0}
     for turno in caso["turnos"]:
         r = runtime.conversar(sid, cid, anomes, turno["entrada"], valor=turno.get("valor"), modelo=modelo)
@@ -173,6 +190,8 @@ def rodar_caso_modelo(caso: dict, clientes: dict, modelo: str) -> dict:
         latv += [x for x in (fin.get("latencias_validador_ms") or []) if isinstance(x, int)]
         tin += int(fin.get("tokens_entrada") or 0)
         tout += int(fin.get("tokens_saida") or 0)
+        tinv += int(fin.get("tokens_entrada_validador") or 0)
+        toutv += int(fin.get("tokens_saida_validador") or 0)
         chamadas += int(fin.get("chamadas_llm") or 0)
         chv += int(fin.get("chamadas_validador") or 0)
         if r.get("validador"):
@@ -186,9 +205,10 @@ def rodar_caso_modelo(caso: dict, clientes: dict, modelo: str) -> dict:
     if erros:
         ok, falhas = False, falhas + [f"erro: {e}" for e in erros]
     checks = [t for t in trace_caso if t["ferramenta"] == "checagens"]
-    return {**VAZIO, "id": caso["id"], "titulo": caso["titulo"], "aprovado": ok, "falhas": falhas, "trajetoria": ferramentas, "cards": cards,
+    base = {**VAZIO, "id": caso["id"], "titulo": caso["titulo"], "aprovado": ok, "falhas": falhas, "trajetoria": ferramentas, "cards": cards,
             "latencias_ms": lat, "latencias_validador_ms": latv, "tokens_entrada": tin, "tokens_saida": tout, "chamadas": chamadas,
-            "chamadas_validador": chv, "texto": " | ".join(textos), "validador": "; ".join(vals) or "—",
+            "chamadas_validador": chv, "tokens_entrada_validador": tinv, "tokens_saida_validador": toutv}
+    return {**base, **custo_de(base, modelo), "texto": " | ".join(textos), "validador": "; ".join(vals) or "—",
             "checagens": ("ok" if all(t["resumo"] == "ok" for t in checks) else "; ".join(t["resumo"] for t in checks if t["resumo"] != "ok")) if checks else "—",
             "acao": ", ".join(acoes) or "—", "duracao_ms": int((time.perf_counter() - t0) * 1000), **det}
 
@@ -252,7 +272,7 @@ def rodar_caso_gi(caso: dict, modelo: str, validar: bool) -> dict:
         rs = runtime.gerar_gi(caso["contexto"], entradas, modelo=modelo, validar=validar)
     except Exception as e:
         return {**VAZIO, "id": caso["id"], "titulo": caso["titulo"], "aprovado": False, "falhas": [f"erro: {type(e).__name__}: {str(e)[:120]}"]}
-    falhas, textos, lat, latv, tin, tout, ch, chv, vals, checks, acoes, regen = [], [], [], [], 0, 0, 0, 0, [], [], [], 0
+    falhas, textos, lat, latv, tin, tout, tinv, toutv, ch, chv, vals, checks, acoes, regen = [], [], [], [], 0, 0, 0, 0, 0, 0, [], [], [], 0
     for i, turno in enumerate(caso["turnos"]):
         if i >= len(rs):
             falhas.append(f"turno {i + 1} não rodou")
@@ -267,6 +287,8 @@ def rodar_caso_gi(caso: dict, modelo: str, validar: bool) -> dict:
         latv += [x for x in (fin.get("latencias_validador_ms") or []) if isinstance(x, int)]
         tin += int(fin.get("tokens_entrada") or 0)
         tout += int(fin.get("tokens_saida") or 0)
+        tinv += int(fin.get("tokens_entrada_validador") or 0)
+        toutv += int(fin.get("tokens_saida_validador") or 0)
         ch += int(fin.get("chamadas_llm") or 0)
         chv += int(fin.get("chamadas_validador") or 0)
         regen += int(r.get("regeneracoes") or 0)
@@ -293,8 +315,10 @@ def rodar_caso_gi(caso: dict, modelo: str, validar: bool) -> dict:
             acoes.append(f"botão {bp.get('acao') if bp else None}")
         else:
             acoes.append(f"{s.get('acao')}" + (f"/{s.get('oferta_id')}" if s.get("oferta_id") else ""))
-    return {**VAZIO, "id": caso["id"], "titulo": caso["titulo"], "aprovado": not falhas, "falhas": falhas, "latencias_ms": lat,
+    base = {**VAZIO, "id": caso["id"], "titulo": caso["titulo"], "aprovado": not falhas, "falhas": falhas, "latencias_ms": lat,
             "latencias_validador_ms": latv, "tokens_entrada": tin, "tokens_saida": tout, "chamadas": ch, "chamadas_validador": chv,
+            "tokens_entrada_validador": tinv, "tokens_saida_validador": toutv}
+    return {**base, **custo_de(base, modelo),
             "texto": " | ".join(textos), "validador": "; ".join(vals), "checagens": "; ".join(checks), "acao": ", ".join(acoes),
             "regeneracoes": regen, "duracao_ms": int((time.perf_counter() - t0) * 1000), "fidelidade": 1.0 if not any("número" in f for f in falhas) else 0.0}
 
@@ -313,16 +337,22 @@ def _rodape(resultados: list[dict]) -> str:
     p50, p95 = p50_p95(todas)
     v50, v95 = p50_p95(todasv)
     aprov = sum(1 for r in resultados if r["aprovado"])
+    custos = [r.get("custo_usd") for r in resultados]
+    total = None if any(c is None for c in custos) else round(sum(custos), 6)
+    ag = [r.get("custo_agente_usd") for r in resultados]
+    va = [r.get("custo_validador_usd") for r in resultados]
     return (f"**{aprov} de {len(resultados)} aprovados** · chamadas ao agente: {sum(r['chamadas'] for r in resultados)} · "
             f"chamadas ao validador: {sum(r.get('chamadas_validador', 0) for r in resultados)} · "
             f"tokens entrada/saída (agente + validador): {sum(r['tokens_entrada'] for r in resultados)}/{sum(r['tokens_saida'] for r in resultados)} · "
-            f"latência do agente p50/p95: {p50}/{p95} ms · latência do validador p50/p95: {v50}/{v95} ms")
+            f"latência do agente p50/p95: {p50}/{p95} ms · latência do validador p50/p95: {v50}/{v95} ms · "
+            f"**custo da rodada: US$ {usd(total)}** (agente US$ {usd(None if any(c is None for c in ag) else round(sum(ag), 6))} · "
+            f"validador US$ {usd(None if any(c is None for c in va) else round(sum(va), 6))}; preço de config/finops.yaml)")
 
 
 def tabela(modelo: str, modo: str, resultados: list[dict]) -> str:
     linhas = [f"### golden.json · modelo `{modelo}` · modo `{modo}`", "",
-              "| caso | resultado | fidelidade numérica | trajetória / ação | checagens | validador | termos barrados | latência agente (ms) | latência validador (ms) | tokens in/out | chamadas ag/val |",
-              "|---|---|---|---|---|---|---|---|---|---|---|"]
+              "| caso | resultado | fidelidade numérica | trajetória / ação | checagens | validador | termos barrados | latência agente (ms) | latência validador (ms) | tokens in/out | chamadas ag/val | custo US$ (ag + val) |",
+              "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in resultados:
         res = "aprovado" if r["aprovado"] else "reprovado: " + "; ".join(r["falhas"])[:160]
         fid = f"{r['fidelidade']:.0%} ({r['numeros_citados']} ok, {r['numeros_barrados']} barrados" + (": " + "; ".join(r.get("barrados_detalhe") or []) if r.get("barrados_detalhe") else "") + ")"
@@ -333,21 +363,23 @@ def tabela(modelo: str, modo: str, resultados: list[dict]) -> str:
         lat = ", ".join(str(x) for x in r["latencias_ms"]) or "—"
         latv = ", ".join(str(x) for x in r.get("latencias_validador_ms") or []) or "—"
         linhas.append(f"| {r['id']} | {res} | {fid} | {traj} | {r.get('checagens', '—')} | {r.get('validador', '—')} | {termos} | {lat} | {latv} | "
-                      f"{r['tokens_entrada']}/{r['tokens_saida']} | {r['chamadas']}/{r.get('chamadas_validador', 0)} |")
+                      f"{r['tokens_entrada']}/{r['tokens_saida']} | {r['chamadas']}/{r.get('chamadas_validador', 0)} | "
+                      f"{usd(r.get('custo_usd'))} ({usd(r.get('custo_agente_usd'))} + {usd(r.get('custo_validador_usd'))}) |")
     linhas += ["", _rodape(resultados) + f" · fidelidade média: {sum(r['fidelidade'] for r in resultados) / max(1, len(resultados)):.0%}", ""]
     return "\n".join(linhas)
 
 
 def tabela_gi(modelo: str, resultados: list[dict]) -> str:
     linhas = [f"### golden_gi.json (22 exemplos da Gi) · modelo `{modelo}` · modo `gi`", "",
-              "| exemplo | resultado | ação / oferta | checagens | validador | regenerações | latência agente (ms) | latência validador (ms) | tokens in/out | chamadas ag/val |",
-              "|---|---|---|---|---|---|---|---|---|---|"]
+              "| exemplo | resultado | ação / oferta | checagens | validador | regenerações | latência agente (ms) | latência validador (ms) | tokens in/out | chamadas ag/val | custo US$ (ag + val) |",
+              "|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in resultados:
         res = "aprovado" if r["aprovado"] else "reprovado: " + "; ".join(r["falhas"])[:200]
         lat = ", ".join(str(x) for x in r["latencias_ms"]) or "—"
         latv = ", ".join(str(x) for x in r.get("latencias_validador_ms") or []) or "—"
         linhas.append(f"| {r['id']} · {r['titulo'][:40]} | {res} | {r.get('acao', '—')} | {r.get('checagens', '—')} | {r.get('validador', '—')} | "
-                      f"{r.get('regeneracoes', 0)} | {lat} | {latv} | {r['tokens_entrada']}/{r['tokens_saida']} | {r['chamadas']}/{r.get('chamadas_validador', 0)} |")
+                      f"{r.get('regeneracoes', 0)} | {lat} | {latv} | {r['tokens_entrada']}/{r['tokens_saida']} | {r['chamadas']}/{r.get('chamadas_validador', 0)} | "
+                      f"{usd(r.get('custo_usd'))} ({usd(r.get('custo_agente_usd'))} + {usd(r.get('custo_validador_usd'))}) |")
     linhas += ["", _rodape(resultados), ""]
     return "\n".join(linhas)
 
@@ -425,8 +457,14 @@ def main() -> int:
 
     ids = set(args.casos.split(",")) if args.casos else None
     modelos = [m.strip() for m in (args.modelos or os.environ.get("MODELO") or "gemini-3.8-flash").split(",") if m.strip()]
+    from cabe_core import finops as finops_core
     saida = [f"# Evals · {time.strftime('%Y-%m-%d %H:%M')} · modo `{modo}` · validador {'ligado' if validar else 'desligado'} "
-             f"(modelo do validador `{validador.modelo_configurado()}`) · pensamento `{os.environ.get('PENSAMENTO') or 'minimal (padrão)'}`", ""]
+             f"(modelo do validador `{validador.modelo_configurado()}`) · pensamento `{os.environ.get('PENSAMENTO') or 'budget:0 (padrão)'}`", ""]
+    for m in modelos:
+        pr = finops_core.preco_de(m)
+        saida.append(f"Preço de `{m}`: " + (f"US$ {pr['entrada_por_milhao_usd']} entrada / US$ {pr['saida_por_milhao_usd']} saída por milhão de tokens"
+                                            f" ({pr['vigencia']}; fonte: {pr['fonte']})" if pr["confirmado"] else "não confirmado em config/finops.yaml (custo fica —)"))
+    saida.append("")
     total_ag = total_val = 0
     for modelo in modelos:
         if args.conjunto in ("gi", "ambos"):
@@ -474,7 +512,7 @@ def main() -> int:
 
 def _imprime(modelo: str, r: dict, mostrar: bool) -> None:
     marca = "ok " if r["aprovado"] else "X  "
-    print(f"[{marca}] {modelo} · {r['id']} · {r['chamadas']} ag / {r.get('chamadas_validador', 0)} val · {r.get('validador', '—')} · "
+    print(f"[{marca}] {modelo} · {r['id']} · {r['chamadas']} ag / {r.get('chamadas_validador', 0)} val · US$ {usd(r.get('custo_usd'))} · {r.get('validador', '—')} · "
           f"{', '.join(r['falhas']) if r['falhas'] else 'aprovado'}", file=sys.stderr)
     if mostrar and r.get("texto"):
         print("      " + r["texto"][:600].replace("\n", " "), file=sys.stderr)

@@ -202,7 +202,7 @@ def test_runtime_sessao_consentimento_e_acompanhamento():
     assert [c["ciclos_ok"] for c in ciclos] == [1, 2, 3] and ciclos[-1]["encerrado"] and ciclos[-1]["cards"][0]["tipo"] == "acompanhamento"
     assert runtime.avancar_mes(s["sessao_id"])["erro"] == "plano_encerrado"
     p = runtime.painel(s["sessao_id"])
-    assert p["encerrado"] and p["nao_pago"] == 0 and p["finops"]["chamadas_llm"] == 0 and p["finops"]["custo_estimado"] is None
+    assert p["encerrado"] and p["nao_pago"] == 0 and p["finops"]["chamadas_llm"] == 0 and p["finops"]["custo_estimado"] == 0   # zero chamadas => US$ 0 (preço com fonte)
     assert p["comparativo_real_2025"]["faturas_roladas"] == 5
 
 

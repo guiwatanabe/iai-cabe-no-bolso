@@ -92,6 +92,18 @@ def test_fonte_bigquery_config_por_env(monkeypatch):
     assert dados._janela("202510–202512") == (202510, 202512)
 
 
+def test_fonte_bigquery_teto_de_bytes_por_consulta_vem_do_finops_yaml(monkeypatch):
+    """Trava do BigQuery (docs/11 §3, docs/12 §7): maximum_bytes_billed = travas.bigquery_maximum_bytes_billed (1 GB)."""
+    from cabe_core import finops
+
+    bq = dados.FonteBigQuery(executor=lambda sql, p: [])
+    assert bq.maximum_bytes_billed == finops.travas()["bigquery_maximum_bytes_billed"] == 1_000_000_000
+    assert dados.FonteBigQuery(executor=lambda sql, p: [], maximum_bytes_billed=5).maximum_bytes_billed == 5
+    monkeypatch.setattr(finops, "travas", lambda cfg=None: {})          # YAML sem a trava: sem teto, mas sem quebrar
+    assert dados.FonteBigQuery(executor=lambda sql, p: []).maximum_bytes_billed is None
+    assert "@cliente_id" in dados.FonteBigQuery.SQL_EXTRATO               # só consulta parametrizada; nunca texto no SQL
+
+
 def test_fonte_memoria_faturas_e_perfil():
     lanc = [
         {"anomes": 202507, "dia": 5, "tipo": "E", "descr": "beneficio", "valor": 300000, "macro": "Salarios e bonificacoes",

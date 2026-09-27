@@ -19,6 +19,8 @@ import secrets
 import time
 from datetime import datetime, timezone
 
+from . import finops as finops_srv
+
 
 def agora_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -48,7 +50,8 @@ def novo_estado(cliente_id: str, anomes: int, persona: str | None, apelido: str,
         "numeros_validados": [],
         "_numeros_vistos": [],
         "trace": [],
-        "finops": {"chamadas_llm": 0, "tokens_entrada": 0, "tokens_saida": 0, "latencias_ms": []},
+        "finops": {"chamadas_llm": 0, "chamadas_validador": 0, "tokens_entrada": 0, "tokens_saida": 0, "tokens_entrada_validador": 0,
+                   "tokens_saida_validador": 0, "latencias_ms": []},
         "modo": modo,
         "modo_conversa": modo_conversa or ("sem_llm" if modo == "sem_llm" else "tools"),
         "gatilho": None,
@@ -103,6 +106,7 @@ def registrar_turno(estado: dict, **campos) -> dict:
     """Um registro por turno para o painel da banca: quem pediu, gatilho e modo enviados ao agente, o que o código checou,
     o que o validador decidiu, quantas regenerações houve e se saiu a mensagem segura. Sem texto do cliente (entrada é dado)."""
     turno = {"ordem": len(estado.setdefault("turnos", [])) + 1, "ts": agora_iso(), **campos}
+    finops_srv.completar_turno(estado, turno)   # custo em USD por papel + uma linha JSON por papel no log (Cloud Logging)
     estado["turnos"].append(turno)
     return turno
 

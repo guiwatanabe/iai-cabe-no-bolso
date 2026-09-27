@@ -137,4 +137,4 @@ personas_demo:                # clientes reais da base; apelidos fictícios; dat
     grupo_esperado: escorregao
     perfil: "Reserva da Escorregão"
 
-preco_modelo: null            # DESCONHECIDO: preço por token do modelo do evento não tem fonte no repo; custo_estimado fica null no painel
+preco_modelo: null            # não é mais lido: o preço por token (com fonte e vigência) vive em config/finops.yaml (precos); custo em cabe_core/finops.py

@@ -35,7 +35,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-from cabe_core import acompanhar, calendario, capacidade, fatura as fatura_mod, painel as painel_mod
+from cabe_core import acompanhar, calendario, capacidade, fatura as fatura_mod, finops as finops_core, painel as painel_mod
 from cabe_core.dinheiro import brl, coletar_numeros
 from cabe_no_bolso import agent as agent_mod, agente_gi, callbacks, checagens, contexto as contexto_mod, policy, prompt_gi, tools, validador
 
@@ -103,17 +103,26 @@ def configuracao() -> dict:
 
 # ------------------------------------------------------------------ infraestrutura
 def criar_runner(modelo: str | None = None, modo: str | None = None) -> Runner:
-    """Um Runner por (modo, modelo), todos sobre o mesmo InMemorySessionService. Reutilizado entre chamadas."""
-    nome = modelo or agent_mod.modelo_configurado()
+    """Um Runner por (modo, modelo), todos sobre o mesmo InMemorySessionService. Reutilizado entre chamadas.
+
+    O Runner recebe um App (agent.criar_app: nome + agente + plugins de retentativa de ferramenta e, se BQ_ANALYTICS_DATASET,
+    analytics no BigQuery), padrão trazido de guiwatanabe/iai-cabe-no-bolso. O modelo é sempre um nome (string) aqui;
+    o objeto Gemini nasce em agent.modelo_gemini.
+    """
+    nome = agent_mod.nome_do_modelo(modelo) if modelo else agent_mod.modelo_configurado()
     modo = modo or modo_conversa()
     chave = (modo, nome)
     if chave not in _RUNNERS:
         if modo == "gi":
             agente = agente_gi.criar_agente_gi(nome)
         else:
-            agente = agent_mod.root_agent if nome == agent_mod.root_agent.model else agent_mod.criar_agente(nome)
-        _RUNNERS[chave] = Runner(app_name=APP, agent=agente, session_service=_SESSOES)
+            agente = agent_mod.root_agent if nome == agent_mod.nome_do_modelo(agent_mod.root_agent.model) else agent_mod.criar_agente(nome)
+        _RUNNERS[chave] = Runner(app=agent_mod.criar_app(agente, nome=APP), session_service=_SESSOES)
     return _RUNNERS[chave]
+
+
+def nome_do_modelo(runner: Runner) -> str:
+    return agent_mod.nome_do_modelo(runner.agent.model)
 
 
 def _executar(coro):
@@ -213,7 +222,7 @@ async def criar_sessao_async(cliente_id: str, anomes: int, persona: str | None =
         "grupo_rotulo": g["rotulo"], "data_simulada": data_sim, "consentimento": False, "consentimento_registro": None,
         "mes_simulado": anomes, "plano": None, "motor": None, "ofertas": None, "ciclos": [], "escolha_pagamento": None,
         "numeros_validados": numeros, "trace": [], "guardiao": {"removidos": [], "termos_bloqueados": [], "substituicoes": 0},
-        "finops": {"chamadas_llm": 0, "chamadas_validador": 0, "tokens_entrada": 0, "tokens_saida": 0, "latencias_ms": [], "custo_estimado": None},
+        "finops": {"chamadas_llm": 0, "chamadas_validador": 0, "tokens_entrada": 0, "tokens_saida": 0, "tokens_entrada_validador": 0, "tokens_saida_validador": 0, "latencias_ms": [], "custo_estimado": None},
         "ferramentas_usadas": [], "historico_contratacoes": list((simulacao or {}).get("historico_contratacoes") or []),
         "simulacao": {k: v for k, v in (simulacao or {}).items() if k in ("taxas", "liberacao", "status_cobertura", "publico_vulneravel")} or None,
         "recusou_oferta": False, "encaminhado": None, "cards_enviados": [], "historico_conversa": [], "validador_reprovacoes": [],
@@ -223,7 +232,7 @@ async def criar_sessao_async(cliente_id: str, anomes: int, persona: str | None =
                f"fatura do mês reconstruída pelo modo {atual['modo']} (só o mês; histórico só depois do consentimento)",
                numeros[:3], 0, "sessao")
     sess = await runner.session_service.create_session(app_name=APP, user_id=cliente_id, session_id=sid, state=estado)
-    _REGISTRO[sess.id] = {"cliente_id": cliente_id, "modelo": runner.agent.model}
+    _REGISTRO[sess.id] = {"cliente_id": cliente_id, "modelo": nome_do_modelo(runner)}
     return {
         "sessao_id": sess.id, "modo": "api", "modo_conversa": estado["modo_conversa"],
         "cliente": {"apelido": apelido, "perfil": p.get("perfil"), "grupo_rotulo": g["rotulo"]},
@@ -466,6 +475,22 @@ async def _rodar_modelo(runner: Runner, sessao, texto: str) -> list[str]:
     return textos
 
 
+async def _modelo(runner: Runner, sessao, texto: str, papel: str = "agente") -> list[str]:
+    """_rodar_modelo com o papel da chamada (agente | regeneracao | insight) marcado para o FinOps por papel
+    (callbacks.PAPEL_LLM, lido em after_model). Os testes trocam _rodar_modelo por um modelo falso; este envelope fica."""
+    token = callbacks.PAPEL_LLM.set(papel)
+    try:
+        return await _rodar_modelo(runner, sessao, texto)
+    finally:
+        callbacks.PAPEL_LLM.reset(token)
+
+
+async def _entradas_bloqueadas(runner: Runner, sessao) -> int:
+    """Contador de mensagens bloqueadas antes do modelo (callbacks.bloquear_entrada_insegura), lido do estado atual."""
+    s = await runner.session_service.get_session(app_name=APP, user_id=sessao.user_id, session_id=sessao.id)
+    return int(((s.state if s else None) or {}).get("entradas_bloqueadas") or 0)
+
+
 def _resposta_erro_modelo(sessao_id: str, st0, e: Exception) -> dict:
     callbacks._log("erro_modelo", sessao=sessao_id, erro=type(e).__name__, detalhe=str(e)[:300])
     return {**_erro(f"modelo: {type(e).__name__}: {str(e)[:200]}", MENSAGEM_ERRO_MODELO),
@@ -483,15 +508,39 @@ def _historico_mais(state, cliente: str | None, agente: str | None) -> list[dict
 
 
 def _finops_turno(st, fin0: dict, duracao: int, ferramentas: list[str], extra_validador: dict | None = None) -> dict:
+    """FinOps de um turno: o que cresceu no state desde fin0, separado por papel (tokens do validador à parte) e com o custo
+    em USD pelo preço de config/finops.yaml (cabe_core.finops)."""
     fin = st.get("finops") or {}
     lat = list(fin.get("latencias_ms") or [])[len(fin0.get("latencias_ms") or []):]
     v = extra_validador or {}
-    return {"chamadas_llm": int(fin.get("chamadas_llm", 0)) - int(fin0.get("chamadas_llm", 0)),
-            "chamadas_validador": int(v.get("chamadas", 0)),
-            "tokens_entrada": int(fin.get("tokens_entrada", 0)) - int(fin0.get("tokens_entrada", 0)),
-            "tokens_saida": int(fin.get("tokens_saida", 0)) - int(fin0.get("tokens_saida", 0)),
-            "latencias_ms": lat, "latencias_validador_ms": list(v.get("latencias", [])), "duracao_turno_ms": duracao, "ferramentas": ferramentas,
-            "modo_conversa": st.get("modo_conversa") or modo_conversa()}
+
+    def delta(k: str) -> int:
+        return int(fin.get(k, 0) or 0) - int(fin0.get(k, 0) or 0)
+
+    turno = {"chamadas_llm": delta("chamadas_llm"), "chamadas_validador": int(v.get("chamadas", 0)),
+             "tokens_entrada": delta("tokens_entrada"), "tokens_saida": delta("tokens_saida"),
+             "tokens_entrada_validador": delta("tokens_entrada_validador"), "tokens_saida_validador": delta("tokens_saida_validador"),
+             "latencias_ms": lat, "latencias_validador_ms": list(v.get("latencias", [])), "duracao_turno_ms": duracao, "ferramentas": ferramentas,
+             "modo_conversa": st.get("modo_conversa") or modo_conversa()}
+    custo = finops_core.custo_por_papel(turno, agent_mod.modelo_configurado(), validador.modelo_configurado())
+    turno["custo_usd"] = custo["total"]["custo_usd"]
+    turno["custo_agente_usd"] = custo["agente"]["custo_usd"]
+    turno["custo_validador_usd"] = custo["validador"]["custo_usd"]
+    turno["chamadas_por_papel"] = _delta_por_papel(fin, fin0)
+    return turno
+
+
+def _delta_por_papel(fin: dict, fin0: dict) -> dict:
+    """O que cresceu em finops.chamadas_por_papel desde fin0: {papel: {chamadas, tokens_entrada, tokens_saida, latencias_ms}}."""
+    out = {}
+    for papel, reg in (fin.get("chamadas_por_papel") or {}).items():
+        antes = (fin0.get("chamadas_por_papel") or {}).get(papel) or {}
+        d = {k: int(reg.get(k, 0) or 0) - int(antes.get(k, 0) or 0) for k in ("chamadas", "tokens_entrada", "tokens_saida")}
+        if d["chamadas"] > 0:
+            d["latencias_ms"] = list(reg.get("latencias_ms") or [])[len(antes.get("latencias_ms") or []):]
+            d["modelo"] = reg.get("modelo")
+            out[papel] = d
+    return out
 
 
 # ------------------------------------------------------------------ validador (nos dois modos)
@@ -500,11 +549,18 @@ def _registrar_validacao(state, r: dict, saida: dict, etapa: str) -> None:
                validador.resumo(r), [], r.get("latencia_ms"), etapa, llm=True,
                violacoes=list(r.get("violacoes") or []), aprovado=r.get("aprovado"), orientacao=r.get("orientacao"))
     fin = dict(state.get("finops") or {})
+    tin, tout = int(r.get("tokens_entrada") or 0), int(r.get("tokens_saida") or 0)
     fin["chamadas_validador"] = int(fin.get("chamadas_validador", 0)) + 1
-    fin["tokens_entrada"] = int(fin.get("tokens_entrada", 0)) + int(r.get("tokens_entrada") or 0)
-    fin["tokens_saida"] = int(fin.get("tokens_saida", 0)) + int(r.get("tokens_saida") or 0)
+    fin["tokens_entrada"] = int(fin.get("tokens_entrada", 0)) + tin
+    fin["tokens_saida"] = int(fin.get("tokens_saida", 0)) + tout
+    fin["tokens_entrada_validador"] = int(fin.get("tokens_entrada_validador", 0)) + tin     # separado por papel (custo e painel)
+    fin["tokens_saida_validador"] = int(fin.get("tokens_saida_validador", 0)) + tout
     fin["latencias_validador_ms"] = list(fin.get("latencias_validador_ms") or []) + [r.get("latencia_ms")]
+    callbacks.somar_por_papel(fin, "validador", SimpleNamespace(prompt_token_count=tin, candidates_token_count=tout), r.get("latencia_ms"), r.get("modelo"))
+    fin["custo_estimado"] = callbacks.custo_corrente(fin)
     state["finops"] = fin
+    callbacks._log("modelo", sessao=None, papel="validador", modelo=r.get("modelo"), latencia_ms=r.get("latencia_ms"), tokens_entrada=tin,
+                   tokens_saida=tout, custo_usd=finops_core.custo_usd(tin, tout, r.get("modelo"))["custo_usd"], aprovado=r.get("aprovado"), etapa=etapa)
     if r.get("aprovado") is False:
         reps = list(state.get("validador_reprovacoes") or [])
         reps.append({"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "violacoes": r.get("violacoes"),
@@ -541,9 +597,14 @@ async def _turno_gi(runner: Runner, sessao, ctx_gi: dict, indice: dict, mensagem
     saida: dict | None = None
     r_val: dict | None = None
     erro = None
+    bloqueios0 = await _entradas_bloqueadas(runner, sessao)
+    entrada_bloqueada = False
 
     async def gerar(texto_msg: str, tentativa: int) -> tuple[dict | None, dict, str]:
-        textos = await _rodar_modelo(runner, sessao, texto_msg)
+        nonlocal entrada_bloqueada
+        papel = "regeneracao" if tentativa > 1 else ("insight" if modo == "insight" else "agente")
+        textos = await _modelo(runner, sessao, texto_msg, papel)
+        entrada_bloqueada = entrada_bloqueada or (await _entradas_bloqueadas(runner, sessao)) > bloqueios0
         bruto = "\n".join(t for t in textos if t.strip()).strip()
         s = checagens.analisar_saida(bruto)
         ch = checagens.checar(s, ctx_gi, indice, modo=modo, consentimento=consentimento, tentativa=tentativa,
@@ -562,7 +623,8 @@ async def _turno_gi(runner: Runner, sessao, ctx_gi: dict, indice: dict, mensagem
         if not ch["ok"]:                      # 2ª falha de número, oferta inexistente, ação sem consentimento: texto fixo
             saida = checagens.mensagem_segura(ctx_gi, modo)
             mensagem_segura, motivo_segura = True, "checagens: " + "; ".join(f"{f['regra']}: {f['motivo']}" for f in ch["falhas"][:3])
-        if validar and not mensagem_segura and saida is not None:
+        # entrada bloqueada antes do modelo (injeção): a recusa é texto fixo em código, não passa pelo validador (0 chamadas)
+        if validar and not mensagem_segura and saida is not None and not entrada_bloqueada:
             r_val = await validador.validar_async(saida, ctx_gi, _historico_mais(st_ini, texto_cliente, None), modelo=modelo_validador)
             val_calls.append(r_val)
             if r_val.get("aprovado") is False:
@@ -589,7 +651,8 @@ async def _turno_gi(runner: Runner, sessao, ctx_gi: dict, indice: dict, mensagem
         erro = e
     return {"saida": saida, "saida_bruta": saida_bruta, "checagens": tentativas[-1]["checagens"] if tentativas else None,
             "validador": r_val, "mensagem_segura": mensagem_segura, "motivo_segura": motivo_segura, "nao_enviar": False,
-            "regeneracoes": regeneracoes, "tentativas": tentativas, "validacoes": val_calls, "erro": erro}
+            "regeneracoes": regeneracoes, "tentativas": tentativas, "validacoes": val_calls, "erro": erro,
+            "entrada_bloqueada": entrada_bloqueada}
 
 
 def _gatilho(st, acao: str | None) -> str:
@@ -753,6 +816,8 @@ async def _conversar_gi(runner: Runner, sessao, sessao_id: str, acao: str | None
                    falhas=ch["falhas"])
     for v in r["validacoes"]:
         _registrar_validacao(ctx_tool.state, v, saida, "validador")
+    if r.get("entrada_bloqueada"):
+        _trace_add(ctx_tool.state, "validador", {"modo": "gi", "aplicado": False}, "não aplicado: entrada bloqueada antes do modelo (recusa fixa em código)", [], 0, "validador")
     if r["mensagem_segura"]:
         _trace_add(ctx_tool.state, "mensagem_segura", {"motivo": r.get("motivo_segura")}, "texto fixo no lugar da resposta do modelo", [], 0, "mensagem_segura")
     ctx_tool.state["turnos_llm"] = int(ctx_tool.state.get("turnos_llm") or 0) + 1
@@ -801,7 +866,9 @@ async def _conversar_gi(runner: Runner, sessao, sessao_id: str, acao: str | None
         "numeros_citados": list(saida.get("numeros_citados") or []),
         "validador": {"ativo": validador.ativo(), "aprovado": ultimo_val.get("aprovado"), "violacoes": list(ultimo_val.get("violacoes") or []),
                       "orientacao": ultimo_val.get("orientacao"), "erro": ultimo_val.get("erro"), "regeneracoes": r["regeneracoes"],
-                      "mensagem_segura": r["mensagem_segura"], "motivo_mensagem_segura": r.get("motivo_segura")},
+                      "mensagem_segura": r["mensagem_segura"], "motivo_mensagem_segura": r.get("motivo_segura"),
+                      **({"motivo": "entrada bloqueada antes do modelo: recusa fixa em código, validador não aplicado"} if r.get("entrada_bloqueada") else {})},
+        "entrada_bloqueada": bool(r.get("entrada_bloqueada")),
         "gatilho": gatilho, "modo_conversa": "gi",
         "finops": _finops_turno(st, fin0, duracao, ferramentas, val_info),
         "simulado": True,
@@ -857,8 +924,9 @@ async def _validar_modo_tools(runner: Runner, sessao, sessao_id: str, texto_fina
         else:
             regeneracoes = 1
             try:
-                textos = await _rodar_modelo(runner, sessao, validador.texto_correcao(r, em_json=False)
-                                             + "\nNão chame ferramentas de novo; responda em texto corrido, sem JSON nem bloco de código, no máximo 3 mensagens curtas.")
+                textos = await _modelo(runner, sessao, validador.texto_correcao(r, em_json=False)
+                                       + "\nNão chame ferramentas de novo; responda em texto corrido, sem JSON nem bloco de código, no máximo 3 mensagens curtas.",
+                                       "regeneracao")
                 sessao = await _obter_sessao(runner, sessao_id)
                 novo = "\n\n".join(t.strip() for t in textos if t.strip()).strip()
                 novo, _rel = callbacks.guardiao_texto(novo, sessao.state.get("numeros_validados"))
@@ -914,7 +982,7 @@ async def conversar_async(sessao_id: str, cliente_id: str, anomes: int, texto_ou
     runner = criar_runner(modelo or (_REGISTRO.get(sessao_id) or {}).get("modelo"), modo)
     sessao = await _obter_sessao(runner, sessao_id, cliente_id)
     if sessao is None:
-        r = await criar_sessao_async(cliente_id, anomes, sessao_id=sessao_id, modelo=runner.agent.model)
+        r = await criar_sessao_async(cliente_id, anomes, sessao_id=sessao_id, modelo=nome_do_modelo(runner))
         if r.get("erro"):
             return r
         sessao = await _obter_sessao(runner, sessao_id, cliente_id)
@@ -939,7 +1007,7 @@ async def conversar_async(sessao_id: str, cliente_id: str, anomes: int, texto_ou
     await _aplicar_delta(runner, sessao, {"guardiao": {"removidos": [], "termos_bloqueados": [], "substituicoes": 0}})
     t0 = time.perf_counter()
     try:
-        textos = await _rodar_modelo(runner, sessao, texto)
+        textos = await _modelo(runner, sessao, texto, "agente")
     except Exception as e:  # modelo indisponível, credencial, quota: a demo cai no caminho sem LLM
         return _resposta_erro_modelo(sessao_id, st0, e)
     duracao = int((time.perf_counter() - t0) * 1000)
@@ -949,8 +1017,10 @@ async def conversar_async(sessao_id: str, cliente_id: str, anomes: int, texto_ou
     texto_final = "\n\n".join(t.strip() for t in textos if t.strip()).strip()
     texto_final, rel = callbacks.guardiao_texto(texto_final, st.get("numeros_validados"))   # segunda passada: cobre o texto juntado
     novos = [t for t in (st.get("trace") or [])[n_trace:]]
-    chamadas = [t["ferramenta"] for t in novos if not t.get("bloqueada") and not t.get("llm") and t["ferramenta"] not in ("contexto.montar", "validador", "checagens", "mensagem_segura")]
+    chamadas = [t["ferramenta"] for t in novos if not t.get("bloqueada") and not t.get("llm")
+                and t["ferramenta"] not in ("contexto.montar", "validador", "checagens", "mensagem_segura", "bloqueio_entrada")]
     bloqueadas = any(t.get("bloqueada") for t in novos)
+    entrada_bloqueada = any(t.get("ferramenta") == "bloqueio_entrada" for t in novos)   # injeção: recusa fixa, sem validador
     delta = {}
     if acao == "nao_quero":
         delta["recusou_oferta"] = True
@@ -978,6 +1048,13 @@ async def conversar_async(sessao_id: str, cliente_id: str, anomes: int, texto_ou
         _trace_add(ctx_tool.state, "validador", {"modo": "tools", "aplicado": False}, "não aplicado: texto fixo do plano confirmado (em código)", [], 0, "validador")
         await _aplicar_delta(runner, sessao, _delta(ctx_tool))
         sessao = await _obter_sessao(runner, sessao_id, cliente_id)
+    elif entrada_bloqueada:
+        val_info = {**val_info, "ativo": validador.ativo(), "acao": "nenhuma", "oferta_id": None,
+                    "motivo": "entrada bloqueada antes do modelo: recusa fixa em código, validador não aplicado"}
+        ctx_tool = _ctx(sessao)
+        _trace_add(ctx_tool.state, "validador", {"modo": "tools", "aplicado": False}, "não aplicado: entrada bloqueada antes do modelo (recusa fixa em código)", [], 0, "validador")
+        await _aplicar_delta(runner, sessao, _delta(ctx_tool))
+        sessao = await _obter_sessao(runner, sessao_id, cliente_id)
     elif validador.ativo() and texto_final:
         texto_final, cards, val_info = await _validar_modo_tools(runner, sessao, sessao_id, texto_final, chamadas, cards, texto, acao)
         sessao = await _obter_sessao(runner, sessao_id, cliente_id)
@@ -999,7 +1076,7 @@ async def conversar_async(sessao_id: str, cliente_id: str, anomes: int, texto_ou
         "sugestoes": _sugestoes(st, acao),
         "acao": acao_turno, "oferta_id": oid_turno, "numeros_citados": [n["texto"] for n in checagens.extrair(texto_final)],
         "validador": {k: v for k, v in val_info.items() if k not in ("chamadas", "latencias", "acao", "oferta_id")},
-        "modo_conversa": "tools",
+        "modo_conversa": "tools", "entrada_bloqueada": entrada_bloqueada,
         "finops": _finops_turno(st, fin0, duracao, chamadas, val_info),
         "simulado": True,
     }
@@ -1097,7 +1174,7 @@ async def gerar_gi_async(contexto_pronto: dict, turnos: list[str], *, modelo: st
     indice = contexto_mod.indice_de(contexto_pronto)
     sid = f"eval-{uuid.uuid4().hex[:10]}"
     estado = {"cliente_id": "eval", "anomes": 0, "consentimento": bool(contexto_pronto.get("consentimento")), "numeros_validados": contexto_mod.numeros_de(indice),
-              "trace": [], "finops": {"chamadas_llm": 0, "chamadas_validador": 0, "tokens_entrada": 0, "tokens_saida": 0, "latencias_ms": []},
+              "trace": [], "finops": {"chamadas_llm": 0, "chamadas_validador": 0, "tokens_entrada": 0, "tokens_saida": 0, "tokens_entrada_validador": 0, "tokens_saida_validador": 0, "latencias_ms": []},
               "historico_conversa": [], "modo_conversa": "gi", agente_gi.CHAVE_CONTEXTO: prompt_gi.contexto_json_texto(contexto_pronto)}
     sessao = await runner.session_service.create_session(app_name=APP, user_id="eval", session_id=sid, state=estado)
     out = []
@@ -1178,16 +1255,57 @@ def trace(sessao_id: str, modelo: str | None = None) -> list[dict]:
     return _executar(trace_async(sessao_id, modelo))
 
 
+def custo_estimado(finops: dict | None, modelo: str | None = None, modelo_validador: str | None = None) -> dict:
+    """Custo em USD de um bloco finops (sessão ou turno) pelo preço com fonte de config/finops.yaml.
+
+    Devolve {usd, preco_fonte, moeda, modelo, modelo_validador, vigencia, por_papel, motivo}. usd e preco_fonte ficam None
+    quando o preço de algum modelo usado não tem `status: confirmada` (DESCONHECIDO em vez de chute); zero chamadas => 0.0.
+    por_papel usa finops.chamadas_por_papel (agente | validador | regeneracao | insight) quando o runtime o gravou; o total
+    vem de cabe_core.finops.custo_por_papel (agente + validador), a mesma conta do painel.
+    """
+    fin = dict(finops or {})
+    m = modelo or agent_mod.modelo_configurado()
+    mv = modelo_validador or validador.modelo_configurado()
+    c = finops_core.custo_por_papel(fin, m, mv)
+    por_papel: dict[str, float | None] = {}
+    for papel, reg in (fin.get("chamadas_por_papel") or {}).items():
+        reg = reg if isinstance(reg, dict) else {}
+        mm = reg.get("modelo") or (mv if papel == "validador" else m)
+        por_papel[papel] = finops_core.custo_usd(int(reg.get("tokens_entrada") or 0), int(reg.get("tokens_saida") or 0), mm)["custo_usd"]
+    total = c["total"]["custo_usd"]
+    fontes = [p["preco_fonte"] for p in (c["agente"], c["validador"]) if p.get("preco_confirmado")]
+    fonte = "; ".join(dict.fromkeys(fontes)) if total is not None and fontes else None
+    motivo = None
+    if total is None:
+        faltam = [p["modelo"] for p in (c["agente"], c["validador"]) if not p.get("preco_confirmado")]
+        motivo = f"preço sem status 'confirmada' em config/finops.yaml para: {', '.join(dict.fromkeys(faltam))}"
+    return {"usd": total, "preco_fonte": fonte, "moeda": "USD", "modelo": m, "modelo_validador": mv,
+            "vigencia": c["agente"].get("vigencia") if total is not None else None, "por_papel": por_papel, "motivo": motivo}
+
+
 def finops_de(state) -> dict:
+    """FinOps da sessão no state do agente: chamadas e tokens por papel, latências, custo em USD (config/finops.yaml)."""
     f = state.get("finops") or {}
     p50, p95 = callbacks.p50_p95(list(f.get("latencias_ms") or []))
     vp50, vp95 = callbacks.p50_p95([x for x in (f.get("latencias_validador_ms") or []) if isinstance(x, int)])
+    modelo, mv = agent_mod.modelo_configurado(), validador.modelo_configurado()
+    custo = finops_core.custo_por_papel(f, modelo, mv)
+    preco = finops_core.preco_de(modelo)
+    total = custo["total"]["custo_usd"]
     return {"chamadas_llm": int(f.get("chamadas_llm", 0)), "chamadas_validador": int(f.get("chamadas_validador", 0)),
             "tokens_entrada": int(f.get("tokens_entrada", 0)), "tokens_saida": int(f.get("tokens_saida", 0)),
+            "tokens_entrada_validador": int(f.get("tokens_entrada_validador", 0) or 0), "tokens_saida_validador": int(f.get("tokens_saida_validador", 0) or 0),
             "latencia_p50_ms": p50, "latencia_p95_ms": p95, "validador_latencia_p50_ms": vp50, "validador_latencia_p95_ms": vp95,
-            "custo_estimado": None, "modelo": agent_mod.modelo_configurado(), "modelo_validador": validador.modelo_configurado(),
-            "modo_conversa": state.get("modo_conversa") or modo_conversa(),
-            "nota": "custo_estimado fica null: não há preço por token com fonte em config/taxas.yaml (preco_modelo)"}
+            "custo_estimado": total, "custo_acumulado_sessao_usd": total, "moeda": "USD",
+            "custo_agente_usd": custo["agente"]["custo_usd"], "custo_validador_usd": custo["validador"]["custo_usd"], "por_papel": custo,
+            "chamadas_por_papel": {p: {**reg, "custo_usd": custo_estimado(f, modelo, mv)["por_papel"].get(p)}
+                                   for p, reg in (f.get("chamadas_por_papel") or {}).items()},
+            "entradas_bloqueadas": int(state.get("entradas_bloqueadas") or 0),
+            "preco_fonte": preco["fonte"], "vigencia": preco["vigencia"], "preco_status": preco["status"],
+            "projecao_piloto": finops_core.projecao(total),
+            "modelo": modelo, "modelo_validador": mv, "modo_conversa": state.get("modo_conversa") or modo_conversa(),
+            "nota": ("custo em USD pelo preço com fonte em config/finops.yaml (agente + validador); acompanhamento mensal sem LLM"
+                     if total is not None else "custo_estimado fica null: preço do modelo a conferir em config/finops.yaml")}
 
 
 async def painel_async(sessao_id: str, modelo: str | None = None) -> dict:

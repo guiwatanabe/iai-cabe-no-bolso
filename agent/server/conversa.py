@@ -36,11 +36,11 @@ import time
 
 from starlette.concurrency import run_in_threadpool
 
-from cabe_core import acompanhar, calendario, capacidade, fatura as fatura_mod, ofertas as ofertas_mod, painel as painel_mod, travas
+from cabe_core import acompanhar, calendario, capacidade, fatura as fatura_mod, finops as finops_core, ofertas as ofertas_mod, painel as painel_mod, travas
 from cabe_core.dinheiro import brl
 from cabe_no_bolso import policy
 
-from . import guardiao
+from . import finops as finops_srv, guardiao
 from .sessoes import adicionar_numeros, registrar_historico, registrar_trace, registrar_turno
 
 log = logging.getLogger("cabe_no_bolso.server")
@@ -79,6 +79,7 @@ TERMOS_PROIBIDOS = ("score", "escorregão", "escorregao", "rolando a fatura", "p
 MAX_INSIGHT = 160
 MAX_MENSAGENS_CONVERSA = 3
 FRASE_VALIDADOR = "Nenhuma mensagem chega ao cliente sem passar pelo validador"
+CHAVES_FINOPS = ("chamadas_llm", "chamadas_validador", "tokens_entrada", "tokens_saida", "tokens_entrada_validador", "tokens_saida_validador")
 
 CHIP_HUMANO = {"rotulo": "Falar com uma pessoa", "acao": "falar_com_pessoa", "secundario": True}
 CHIP_VER = {"rotulo": "Ver opções", "acao": "ver_opcoes"}
@@ -872,34 +873,11 @@ def avancar_mes(estado: dict, fonte, taxas: dict) -> dict:
 
 
 def finops(estado: dict, taxas: dict, modelo: str | None) -> dict:
-    f = estado["finops"]
-    lat = sorted(float(x) for x in (f.get("latencias_ms") or []))
-
-    def p(q: float):
-        return None if not lat else round(lat[min(len(lat) - 1, int(round(q * (len(lat) - 1))))], 1)
-
-    preco = taxas.get("preco_modelo")
-    custo = None
-    if (isinstance(preco, dict) and preco.get("fonte") and preco.get("entrada_por_milhao_usd") is not None
-            and preco.get("saida_por_milhao_usd") is not None):
-        custo = round(f["tokens_entrada"] / 1e6 * float(preco["entrada_por_milhao_usd"])
-                      + f["tokens_saida"] / 1e6 * float(preco["saida_por_milhao_usd"]), 6)
-    return {
-        "chamadas_llm": int(f.get("chamadas_llm", 0)),
-        "tokens_entrada": int(f.get("tokens_entrada", 0)),
-        "tokens_saida": int(f.get("tokens_saida", 0)),
-        "latencia_p50_ms": p(0.5),
-        "latencia_p95_ms": p(0.95),
-        "custo_estimado": custo,
-        "modelo": modelo if estado["modo"] == "llm" else None,
-        "rotulo_modelo": rotulo_modelo(estado["modo"], modelo),
-        "modo": estado["modo"],
-        "modo_conversa": estado.get("modo_conversa"),
-        "chamadas_validador": int(f.get("chamadas_validador") or 0) or sum(int((t.get("validador") or {}).get("chamadas") or 0) for t in (estado.get("turnos") or [])),
-        "nota": ("custo_estimado fica null porque preco_modelo em config/taxas.yaml não tem fonte" if custo is None else "custo pelo preco_modelo de config/taxas.yaml")
-                + ("; modo sem LLM: nenhuma chamada ao modelo nesta sessão" if estado["modo"] == "sem_llm" else "")
-                + "; acompanhamento mensal sempre sem LLM",
-    }
+    """Bloco `finops` do painel: custo em USD por papel e por turno, fonte do preço, projeção e teto (server/finops.py ->
+    cabe_core.finops sobre config/finops.yaml). `taxas` fica por compatibilidade: o preço não vem mais de taxas.yaml."""
+    r = finops_srv.resumo_sessao(estado, modelo)
+    r["rotulo_modelo"] = rotulo_modelo(estado["modo"], modelo)
+    return r
 
 
 def rotulo_modelo(modo: str | None, modelo: str | None) -> str:
@@ -1029,16 +1007,34 @@ def _acumular_finops(estado: dict, fin: dict | None) -> dict:
     duração total do turno (duracao_turno_ms) quando o runtime a informa."""
     fin = fin or {}
     ef = estado["finops"]
-    for k in ("chamadas_llm", "chamadas_validador", "tokens_entrada", "tokens_saida"):
-        ef[k] = int(ef.get(k, 0)) + int(fin.get(k, 0) or 0)
+    for k in CHAVES_FINOPS:
+        ef[k] = int(ef.get(k, 0) or 0) + int(fin.get(k, 0) or 0)
     lat = [float(x) for x in (fin.get("latencias_ms") or []) if x is not None]
     lat_val = [float(x) for x in (fin.get("latencias_validador_ms") or []) if x is not None]
     ef["latencias_ms"] = list(ef.get("latencias_ms") or []) + lat + lat_val
+    _somar_por_papel(ef, fin.get("chamadas_por_papel"))
     total = fin.get("duracao_turno_ms")
-    return {"chamadas_llm": int(fin.get("chamadas_llm", 0) or 0), "chamadas_validador": int(fin.get("chamadas_validador", 0) or 0),
-            "tokens_entrada": int(fin.get("tokens_entrada", 0) or 0), "tokens_saida": int(fin.get("tokens_saida", 0) or 0),
+    return {**{k: int(fin.get(k, 0) or 0) for k in CHAVES_FINOPS},
             "latencia_ms": (float(total) if total is not None else (round(sum(lat + lat_val), 1) if (lat or lat_val) else None)),
-            "latencias_ms": lat, "latencias_validador_ms": lat_val}
+            "latencias_ms": lat, "latencias_validador_ms": lat_val, "chamadas_por_papel": dict(fin.get("chamadas_por_papel") or {})}
+
+
+def _somar_por_papel(ef: dict, delta: dict | None) -> None:
+    """Soma o FinOps por papel de um turno (agente | validador | regeneracao | insight, vindo do runtime) ao da sessão."""
+    if not isinstance(delta, dict) or not delta:
+        return
+    pp = dict(ef.get("chamadas_por_papel") or {})
+    for papel, d in delta.items():
+        if not isinstance(d, dict):
+            continue
+        reg = dict(pp.get(papel) or {"chamadas": 0, "tokens_entrada": 0, "tokens_saida": 0, "latencias_ms": []})
+        for k in ("chamadas", "tokens_entrada", "tokens_saida"):
+            reg[k] = int(reg.get(k, 0) or 0) + int(d.get(k, 0) or 0)
+        reg["latencias_ms"] = list(reg.get("latencias_ms") or []) + [x for x in (d.get("latencias_ms") or []) if x is not None]
+        if d.get("modelo"):
+            reg["modelo"] = d["modelo"]
+        pp[papel] = reg
+    ef["chamadas_por_papel"] = pp
 
 
 def _validador_de(r: dict) -> dict:
@@ -1083,13 +1079,16 @@ def _espelhar_finops(estado: dict, bruto: dict) -> dict:
     fin = bruto.get("finops") or {}
     ef = estado["finops"]
     delta = {}
-    for k in ("chamadas_llm", "chamadas_validador", "tokens_entrada", "tokens_saida"):
+    for k in CHAVES_FINOPS:
         novo = int(fin.get(k, 0) or 0)
-        delta[k] = max(0, novo - int(ef.get(k, 0)))
-        ef[k] = max(int(ef.get(k, 0)), novo)
+        delta[k] = max(0, novo - int(ef.get(k, 0) or 0))
+        ef[k] = max(int(ef.get(k, 0) or 0), novo)
     lat = [float(x) for x in (fin.get("latencias_ms") or []) if x is not None] + [float(x) for x in (fin.get("latencias_validador_ms") or []) if x is not None]
     if len(lat) > len(ef.get("latencias_ms") or []):
         ef["latencias_ms"] = lat
+    if isinstance(fin.get("chamadas_por_papel"), dict) and fin["chamadas_por_papel"]:
+        ef["chamadas_por_papel"] = fin["chamadas_por_papel"]           # o state do agente é a fonte: espelho inteiro
+    ef["entradas_bloqueadas"] = max(int(ef.get("entradas_bloqueadas") or 0), int(bruto.get("entradas_bloqueadas") or 0))
     delta["latencia_ms"] = round(sum(lat[len(lat) - max(delta["chamadas_llm"], 0) - max(delta["chamadas_validador"], 0):]), 1) if lat and (delta["chamadas_llm"] or delta["chamadas_validador"]) else None
     return delta
 
@@ -1384,25 +1383,13 @@ def _completar_cards(estado: dict, r: dict) -> None:
 
 
 def finops_config() -> dict:
-    """config/finops.yaml (travas de custo), se existir. Sem o arquivo, os padrões abaixo."""
-    try:
-        from cabe_core import config as _cfg
-        import yaml
-        caminho = _cfg.raiz() / "config" / "finops.yaml"
-        if caminho.exists():
-            with open(caminho, encoding="utf-8") as f:
-                return yaml.safe_load(f) or {}
-    except Exception:
-        pass
-    return {}
+    """config/finops.yaml (preços e travas), via cabe_core.finops. Sem o arquivo, {} e os padrões do módulo."""
+    return finops_core.carregar()
 
 
 def teto_chamadas_por_sessao() -> int:
-    t = (finops_config().get("travas") or {}).get("chamadas_llm_por_sessao_max")
-    try:
-        return int(os.environ.get("CHAMADAS_LLM_POR_SESSAO_MAX") or t or 12)
-    except (TypeError, ValueError):
-        return 12
+    """Teto de chamadas ao modelo por sessão: env CHAMADAS_LLM_POR_SESSAO_MAX > config/finops.yaml > 12."""
+    return finops_core.teto_chamadas_por_sessao()
 
 
 def _resposta_teto(estado: dict, acao: str | None, modo: str, gatilho: str | None) -> dict:

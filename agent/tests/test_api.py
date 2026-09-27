@@ -181,7 +181,10 @@ def test_bruno_confirmar_avancar_tres_meses_encerra(cliente):
     assert p["comparativo_real_2025"]["faturas_roladas"] == 5 and p["comparativo_real_2025"]["juros_pagos"] == 189717
     assert p["plano"]["parcela"] == 11051 and todos_com_origem(p["numeros_com_origem"])
     f = p["finops"]
-    assert f["chamadas_llm"] == 0 and f["custo_estimado"] is None and f["latencia_p50_ms"] is None and f["modo"] == "sem_llm"
+    assert f["chamadas_llm"] == 0 and f["custo_estimado"] == 0 and f["latencia_p50_ms"] is None and f["modo"] == "sem_llm"
+    assert f["moeda"] == "USD" and f["custo_acumulado_sessao_usd"] == 0 and f["projecao_piloto"]["custo_usd"] == 0   # sem LLM: custo zero, não DESCONHECIDO
+    assert f["projecao_piloto"]["rotulo"] == "projeção" and f["projecao_piloto"]["clientes"] == 384 and f["teto_chamadas_por_sessao"] >= 1
+    assert len(f["custo_por_turno"]) == len(p["turnos"]) and all(t["custo_usd"] == 0 and t["llm"] is False for t in f["custo_por_turno"])
     assert isinstance(p["simulado_lista"], list) and p["simulado_lista"]
 
 

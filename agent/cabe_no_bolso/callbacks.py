@@ -8,22 +8,69 @@ O guardião é a última barreira da regra 1 (docs/05): todo número que o clien
 em R$, percentual e contagem do texto do modelo contra state["numeros_validados"] (+ constantes de config/taxas.yaml),
 remove a frase que traz número sem origem, troca "sujeito a" por "depende de aprovação" e barra a lista negra.
 Também é aplicado pelo runtime sobre a resposta final, então vale para adk run, adk web e a API.
+
+Dois guardrails vieram do repositório do Guilherme (padrão trazido de guiwatanabe/iai-cabe-no-bolso, `guardrails.py`):
+- before_model `bloquear_entrada_insegura`: regex de injeção (PT e EN) sobre a última mensagem do usuário; se bater, o
+  modelo nem é chamado e volta uma recusa fixa no formato do modo ativo (texto no modo tools, JSON no modo gi), com
+  registro no trace. Quando before_model devolve resposta, o ADK não roda after_model (conferido em
+  flows/llm_flows/core/_model_call.py), por isso o trace e o contador são gravados aqui mesmo, e o runtime pula o
+  validador nesse turno (texto fixo em código, zero chamadas ao modelo).
+- before_tool `limit_tool_calls`: teto de chamadas de ferramenta por turno (config/finops.yaml,
+  travas.tool_calls_por_turno_max) no estado `temp:` do ADK, que vive só durante a invocação.
+FinOps por papel: cada chamada ao modelo é somada em state["finops"]["chamadas_por_papel"][papel] (agente | regeneracao |
+insight; o validador é somado pelo runtime), com chamadas, tokens de usage_metadata e latência.
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import time
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Any
 
+from google.adk.models import LlmResponse
 from google.genai import types
 
+from cabe_core import finops as finops_core
 from cabe_core.dinheiro import brl
 from cabe_no_bolso import policy
 from cabe_no_bolso.tools import FERRAMENTAS_DE_DADOS
+
+CHAVE_TOOL_CALLS = "temp:tool_calls"   # prefixo temp: o ADK descarta ao fim da invocação => contador por turno
+MENSAGEM_TETO_FERRAMENTAS = "Não consegui concluir a análise agora. Posso te mostrar as formas de pagar ou te passar para uma pessoa."
+RECUSA_ENTRADA = ("Não posso seguir com esse pedido. Aqui eu cuido só da sua fatura e do que cabe no seu mês. "
+                  "Quer ver as formas de pagar ou prefere falar com uma pessoa?")
+
+# Papel da chamada ao modelo em curso, para o FinOps por papel (agente | regeneracao | insight; o validador é registrado
+# pelo runtime). O runtime define antes de invocar o Runner (runtime._modelo); fora dele (adk web, adk run) vale "agente".
+PAPEL_LLM: ContextVar[str] = ContextVar("papel_llm", default="agente")
+PAPEIS_LLM = ("agente", "validador", "regeneracao", "insight")
+
+# Injeção de prompt (entrada é dado, docs/05 princípio 10). Primeira linha de defesa, barata; PT e EN.
+# Cada item: (rótulo que vai ao trace e ao log, padrão). O texto do cliente nunca vai ao log.
+_INSTRUCOES = (r"(?:instru[çc][õo]es|instructions?|regras|rules|orienta[çc][õo]es|diretrizes|guidelines|prompts?|comandos|directives?)"
+               r"(?:\s+(?:anteriores|acima|de\s+cima|iniciais|originais|previous|above|prior|earlier))?")
+_QUALIFICADOR = (r"(?:(?:todas?|as|os|suas?|seus?|the|all|any|my|your|every|these|those|estas?|essas?|"
+                 r"previous|prior|above|earlier|anteriores|acima|iniciais|originais|original|de\s+cima)\s+){0,3}")
+PADROES_INJECAO: tuple[tuple[str, re.Pattern], ...] = (
+    ("ignorar instruções", re.compile(r"\bignor\w*\s+" + _QUALIFICADOR + _INSTRUCOES + r"\b", re.IGNORECASE)),
+    ("ignorar instruções", re.compile(r"\bignore\s+(?:all\s+|the\s+|any\s+)?(?:previous|prior|above|earlier)\b", re.IGNORECASE)),
+    ("descartar instruções", re.compile(r"\b(?:esque[çc]a|esquece|esquecer|desconsidere|desconsidera|descarte|apague|forget|disregard|discard|override|overwrite)\s+"
+                                        + _QUALIFICADOR + _INSTRUCOES + r"\b", re.IGNORECASE)),
+    ("prompt de sistema", re.compile(r"\bsystem\s+(?:prompt|message|instructions?)\b|\bprompt\s+d[eo]\s+sistema\b|\b(?:instru[çc][õo]es|mensagem)\s+d[eo]\s+sistema\b",
+                                     re.IGNORECASE)),
+    ("revelar instruções", re.compile(r"\b(?:revel\w*|mostr\w*|repit\w*|repet\w*|exib\w*|imprim\w*|copi\w*|transcrev\w*|reproduz\w*|cite|diga|reveal|show|print|repeat|output|display|dump|leak|tell)\s+"
+                                      r"(?:me\s+|-me\s+|pra\s+mim\s+|para\s+mim\s+)?" + _QUALIFICADOR
+                                      + r"(?:instru[çc][õo]es|instructions?|prompt|regras|rules|diretrizes|guidelines|configura[çc][ãa]o|system\s+message)\b", re.IGNORECASE)),
+    ("comando SQL", re.compile(r"\bdrop\s+table\b|\bdelete\s+from\b|\btruncate\s+table\b|\bunion\s+(?:all\s+)?select\b|\balter\s+table\b", re.IGNORECASE)),
+    ("troca de papel", re.compile(r"\b(?:agora\s+voc[êe]\s+[ée]|a\s+partir\s+de\s+agora\s+voc[êe]\s+[ée]|you\s+are\s+now|from\s+now\s+on\s+you\s+are|"
+                                  r"finja\s+(?:que\s+)?(?:[ée]|ser)|pretend\s+(?:you\s+are|to\s+be)|act\s+as\s+(?:a|an|if)\b|jailbreak|modo\s+desenvolvedor|"
+                                  r"developer\s+mode|\bDAN\s+mode\b)", re.IGNORECASE)),
+)
 
 MENSAGEM_SEM_CONSENTIMENTO = ("Para olhar seu extrato eu preciso da sua permissão. "
                               "Posso ver seus últimos 90 dias de conta e cartão? Você pode desligar quando quiser.")
@@ -254,9 +301,28 @@ def _resumo_resposta(nome: str, resp: dict) -> str:
 
 
 def before_tool(tool, args: dict, tool_context) -> dict | None:
-    """Consentimento antes de ler histórico (docs/05, princípio 3). Bloqueio em código, não por instrução."""
+    """Consentimento antes de ler histórico (docs/05, princípio 3) e teto de ferramentas por turno (FinOps).
+
+    Bloqueio em código, não por instrução. O teto por turno (config/finops.yaml: travas.tool_calls_por_turno_max) é o
+    padrão `limit_tool_calls` trazido de guiwatanabe/iai-cabe-no-bolso (Guilherme): contador em state['temp:tool_calls'],
+    que o ADK descarta ao fim da invocação; acima do teto a ferramenta não roda e o agente responde com o que já tem.
+    """
     st = tool_context.state
     _INICIO_TOOL[_chave(tool_context)] = (time.perf_counter(), len(st.get("numeros_validados") or []))
+    chamadas = int(st.get(CHAVE_TOOL_CALLS) or 0) + 1
+    st[CHAVE_TOOL_CALLS] = chamadas
+    teto = finops_core.teto_tool_calls_por_turno()
+    if chamadas > teto:
+        trace = list(st.get("trace") or [])
+        trace.append({"ordem": len(trace) + 1, "ferramenta": tool.name, "argumentos": _args_sanitizados(args),
+                      "resumo": f"bloqueada: teto de {teto} ferramentas por turno (config/finops.yaml)", "numeros": [], "duracao_ms": 0,
+                      "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"), "llm": False, "bloqueada": True})
+        st["trace"] = trace
+        _log("ferramenta_bloqueada", sessao=_sessao_id(tool_context), ferramenta=tool.name, motivo="teto_tool_calls_por_turno", teto=teto)
+        return {"bloqueado": True, "motivo": f"teto de {teto} chamadas de ferramenta por turno",
+                "instrucao_ao_agente": "Não chame mais ferramentas neste turno. Responda com o que já tem, em uma frase curta, "
+                                       "e ofereça as formas de pagar ou uma pessoa.",
+                "mensagem_cliente": MENSAGEM_TETO_FERRAMENTAS}
     if tool.name in FERRAMENTAS_DE_DADOS and not st.get("consentimento"):
         trace = list(st.get("trace") or [])
         trace.append({"ordem": len(trace) + 1, "ferramenta": tool.name, "argumentos": _args_sanitizados(args),
@@ -289,9 +355,79 @@ def after_tool(tool, args: dict, tool_context, tool_response: dict) -> dict | No
     return None
 
 
-def before_model(callback_context, llm_request) -> None:
-    _INICIO_MODELO[callback_context.invocation_id] = time.perf_counter()
+# ------------------------------------------------------------------ entrada é dado: bloqueio de injeção antes do modelo
+def texto_do_usuario(llm_request) -> str:
+    """Texto da última mensagem de usuário do pedido (só partes de texto; respostas de ferramenta não contam)."""
+    contents = getattr(llm_request, "contents", None) or []
+    if not contents:
+        return ""
+    ultimo = contents[-1]
+    if getattr(ultimo, "role", None) != "user":
+        return ""
+    return " ".join((p.text or "") for p in (getattr(ultimo, "parts", None) or [])
+                    if getattr(p, "text", None) and not getattr(p, "function_response", None)).strip()
+
+
+def detectar_injecao(texto: str) -> str | None:
+    """Rótulo do primeiro padrão de injeção que bate no texto, ou None. Nunca devolve o texto (vai ao log e ao trace)."""
+    if not texto:
+        return None
+    for rotulo, padrao in PADROES_INJECAO:
+        if padrao.search(texto):
+            return rotulo
     return None
+
+
+def recusa_de_entrada(formato_json: bool) -> LlmResponse:
+    """Resposta fixa no formato do modo ativo: JSON do prompt da Gi (modo gi) ou texto corrido (modo tools)."""
+    if formato_json:
+        texto = json.dumps({"mensagens": [RECUSA_ENTRADA], "acao": "nenhuma", "oferta_id": None, "numeros_citados": []}, ensure_ascii=False)
+    else:
+        texto = RECUSA_ENTRADA
+    return LlmResponse(content=types.Content(role="model", parts=[types.Part(text=texto)]))
+
+
+def bloquear_entrada_insegura(callback_context, llm_request) -> LlmResponse | None:
+    """before_model: se a última mensagem do usuário traz padrão de injeção, o modelo não é chamado e volta a recusa.
+
+    Padrão `block_unsafe_input` trazido de guiwatanabe/iai-cabe-no-bolso (Guilherme), adaptado: regex em PT e EN,
+    recusa no formato do modo (JSON no modo gi) e registro no trace ("como cheguei aqui") e no log estruturado.
+    """
+    rotulo = detectar_injecao(texto_do_usuario(llm_request))
+    if not rotulo:
+        return None
+    st = callback_context.state
+    cfg = getattr(llm_request, "config", None)
+    em_json = getattr(cfg, "response_mime_type", None) == "application/json" or st.get("modo_conversa") == "gi"
+    trace = list(st.get("trace") or [])
+    trace.append({"ordem": len(trace) + 1, "etapa": "bloqueio_entrada", "ferramenta": "bloqueio_entrada",
+                  "argumentos": {"padrao": rotulo, "formato": "json" if em_json else "texto"},
+                  "resumo": f"entrada bloqueada antes do modelo: padrão de injeção ({rotulo}); recusa fixa em código, zero chamadas",
+                  "numeros": [], "duracao_ms": 0, "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"), "llm": False})
+    st["trace"] = trace
+    st["entradas_bloqueadas"] = int(st.get("entradas_bloqueadas") or 0) + 1
+    _INICIO_MODELO.pop(callback_context.invocation_id, None)     # after_model não roda quando before_model responde
+    _log("entrada_bloqueada", sessao=_sessao_id(callback_context), padrao=rotulo, formato="json" if em_json else "texto")
+    return recusa_de_entrada(em_json)
+
+
+def before_model(callback_context, llm_request) -> LlmResponse | None:
+    """Cronômetro da chamada + bloqueio de injeção (a recusa volta sem chamar o modelo)."""
+    _INICIO_MODELO[callback_context.invocation_id] = time.perf_counter()
+    return bloquear_entrada_insegura(callback_context, llm_request)
+
+
+def modelos_configurados() -> tuple[str, str]:
+    """(modelo do agente, modelo do validador) por ambiente; import tardio para não criar ciclo com agent.py."""
+    from cabe_no_bolso import agent as agent_mod  # noqa: WPS433
+    m = agent_mod.modelo_configurado()
+    return m, (os.environ.get("MODELO_VALIDADOR") or m)
+
+
+def custo_corrente(f: dict) -> float | None:
+    """Custo acumulado (USD) do bloco finops do state, agente + validador, com os preços de config/finops.yaml."""
+    m, mv = modelos_configurados()
+    return finops_core.custo_por_papel(f, m, mv)["total"]["custo_usd"]
 
 
 def _finops(st, llm_response, latencia_ms: int | None) -> None:
@@ -303,8 +439,26 @@ def _finops(st, llm_response, latencia_ms: int | None) -> None:
         f["tokens_saida"] = int(f.get("tokens_saida", 0)) + int(getattr(um, "candidates_token_count", 0) or 0)
     if latencia_ms is not None:
         f["latencias_ms"] = list(f.get("latencias_ms") or []) + [latencia_ms]
-    f["custo_estimado"] = None if policy.registro_taxas().get("preco_modelo") is None else f.get("custo_estimado")
+    somar_por_papel(f, PAPEL_LLM.get(), um, latencia_ms, modelos_configurados()[0])
+    f["custo_estimado"] = custo_corrente(f)   # USD pelo preço com fonte em config/finops.yaml (None só se o preço não estiver confirmado)
     st["finops"] = f
+
+
+def somar_por_papel(f: dict, papel: str, usage_metadata, latencia_ms: int | None, modelo: str | None = None) -> None:
+    """Soma uma chamada ao modelo em f["chamadas_por_papel"][papel] (agente | validador | regeneracao | insight):
+    chamadas, tokens de usage_metadata (prompt_token_count / candidates_token_count), latências e modelo. Muta f."""
+    pp = dict(f.get("chamadas_por_papel") or {})
+    reg = dict(pp.get(papel) or {"chamadas": 0, "tokens_entrada": 0, "tokens_saida": 0, "latencias_ms": []})
+    reg["chamadas"] = int(reg.get("chamadas", 0)) + 1
+    if usage_metadata is not None:
+        reg["tokens_entrada"] = int(reg.get("tokens_entrada", 0)) + int(getattr(usage_metadata, "prompt_token_count", 0) or 0)
+        reg["tokens_saida"] = int(reg.get("tokens_saida", 0)) + int(getattr(usage_metadata, "candidates_token_count", 0) or 0)
+    if latencia_ms is not None:
+        reg["latencias_ms"] = list(reg.get("latencias_ms") or []) + [latencia_ms]
+    if modelo:
+        reg["modelo"] = modelo
+    pp[papel] = reg
+    f["chamadas_por_papel"] = pp
 
 
 def after_model(callback_context, llm_response):
@@ -316,9 +470,11 @@ def after_model(callback_context, llm_response):
         return None
     _finops(st, llm_response, latencia)
     tem_chamada = bool(llm_response.content and any(p.function_call for p in (llm_response.content.parts or [])))
-    _log("modelo", sessao=_sessao_id(callback_context), latencia_ms=latencia, chamada_de_ferramenta=tem_chamada,
-         tokens_entrada=int(getattr(getattr(llm_response, "usage_metadata", None), "prompt_token_count", 0) or 0),
-         tokens_saida=int(getattr(getattr(llm_response, "usage_metadata", None), "candidates_token_count", 0) or 0))
+    um = getattr(llm_response, "usage_metadata", None)
+    tin, tout = int(getattr(um, "prompt_token_count", 0) or 0), int(getattr(um, "candidates_token_count", 0) or 0)
+    modelo_ag = modelos_configurados()[0]
+    _log("modelo", sessao=_sessao_id(callback_context), papel=PAPEL_LLM.get(), modelo=modelo_ag, latencia_ms=latencia, chamada_de_ferramenta=tem_chamada,
+         tokens_entrada=tin, tokens_saida=tout, custo_usd=finops_core.custo_usd(tin, tout, modelo_ag)["custo_usd"])
 
     chamadas = [p.function_call.name for p in ((llm_response.content.parts if llm_response.content else None) or []) if p.function_call]
     n_texto = sum(len(p.text or "") for p in ((llm_response.content.parts if llm_response.content else None) or []) if p.text)
@@ -365,4 +521,6 @@ def p50_p95(latencias: list[int]) -> tuple[int | None, int | None]:
 
 
 __all__ = ["before_tool", "after_tool", "before_model", "after_model", "guardiao_texto", "numeros_da_frase", "numeros_config",
-           "p50_p95", "MENSAGEM_SEM_CONSENTIMENTO", "PEDIDO_DE_CONFIRMACAO", "FORA_DO_PLANO", "TERMOS_LISTA_NEGRA", "brl"]
+           "p50_p95", "MENSAGEM_SEM_CONSENTIMENTO", "PEDIDO_DE_CONFIRMACAO", "FORA_DO_PLANO", "TERMOS_LISTA_NEGRA", "brl",
+           "bloquear_entrada_insegura", "detectar_injecao", "recusa_de_entrada", "texto_do_usuario", "PADROES_INJECAO", "RECUSA_ENTRADA",
+           "PAPEL_LLM", "PAPEIS_LLM", "somar_por_papel", "CHAVE_TOOL_CALLS", "MENSAGEM_TETO_FERRAMENTAS"]

@@ -4,19 +4,27 @@ Modelo sempre por variável de ambiente (MODELO; reserva em MODELO_RESERVA). Ver
 GOOGLE_GENAI_USE_VERTEXAI=TRUE, GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_LOCATION=global (gemini-3.8-flash só responde em global).
 A instrução é um InstructionProvider: instruction.md + o contexto da sessão (cliente, mês, consentimento, o que já foi
 calculado), montado em código antes de cada chamada. Assim o modelo conversa a partir das contas, nunca as faz.
+
+O modelo entra como objeto `Gemini` (não como string), com a localização fixa em `global` e retentativas curtas em
+408/429/5xx; o agente é embrulhado num `App` com plugins (retentativa de ferramenta e, opcionalmente, o analytics do
+ADK no BigQuery). Padrão trazido de guiwatanabe/iai-cabe-no-bolso (Guilherme, Time 05).
 """
 from __future__ import annotations
 
 import json
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
 
 from dotenv import load_dotenv
 from google.adk.agents import LlmAgent
+from google.adk.apps import App
+from google.adk.models import Gemini
+from google.adk.plugins import ReflectAndRetryToolPlugin
 from google.genai import types
 
-from cabe_core import calendario
+from cabe_core import calendario, finops as finops_mod
 from cabe_core.dinheiro import brl
 from cabe_no_bolso import callbacks, policy, tools
 
@@ -24,12 +32,66 @@ PASTA = Path(__file__).resolve().parent
 load_dotenv(PASTA.parent / ".env", override=False)
 load_dotenv(PASTA / ".env", override=False)
 
-MODELO_PADRAO = "gemini-3.8-flash"
+log = logging.getLogger("cabe_no_bolso.agent")
+
+MODELO_PADRAO = finops_mod.MODELO_PADRAO
 NOME = "cabe_no_bolso"
+LOCALIZACAO_MODELO = "global"      # gemini-3.8-flash só responde em global (us-central1 dá 404); vale mesmo no Agent Engine
+RETENTATIVAS_MODELO = 3            # 408/429/5xx; teto curto para a demo nunca ficar pendurada
+RETENTATIVA_ATRASO_MAX_S = 8
 
 
 def modelo_configurado() -> str:
-    return os.environ.get("MODELO") or MODELO_PADRAO
+    return finops_mod.modelo_padrao()
+
+
+def usa_vertex() -> bool:
+    return (os.environ.get("GOOGLE_GENAI_USE_VERTEXAI") or "").strip().lower() in ("1", "true", "yes", "sim", "on")
+
+
+def nome_do_modelo(modelo) -> str:
+    """Nome (string) de um modelo dado como string ou como objeto Gemini/BaseLlm."""
+    if isinstance(modelo, str):
+        return modelo
+    return str(getattr(modelo, "model", modelo))
+
+
+def modelo_gemini(modelo: str | None = None) -> Gemini:
+    """Objeto de modelo do ADK com localização `global` (só no Vertex; a Gemini API não aceita project/location) e
+    retentativas com teto curto. Padrão trazido de guiwatanabe/iai-cabe-no-bolso (Guilherme)."""
+    nome = nome_do_modelo(modelo) if modelo else modelo_configurado()
+    kwargs = {}
+    if usa_vertex():
+        kwargs["client_kwargs"] = {"location": os.environ.get("MODELO_LOCALIZACAO") or LOCALIZACAO_MODELO}
+    return Gemini(model=nome, retry_options=types.HttpRetryOptions(attempts=RETENTATIVAS_MODELO, max_delay=RETENTATIVA_ATRASO_MAX_S), **kwargs)
+
+
+def plugins() -> list:
+    """Plugins do App (padrão trazido de guiwatanabe/iai-cabe-no-bolso, Guilherme):
+
+    - ReflectAndRetryToolPlugin(max_retries=2): quando uma ferramenta levanta exceção, devolve ao modelo o erro com uma
+      orientação de reflexão e deixa tentar de novo até 2 vezes; depois disso a exceção sobe e o runtime cai no caminho
+      sem LLM (plano B). Respostas com {"erro": ...} não contam: são resultado, não falha.
+    - BigQueryAgentAnalyticsPlugin(project_id, dataset_id) só quando BQ_ANALYTICS_DATASET está definida: grava os eventos
+      do agente num dataset do BigQuery (custo por cliente, cenário e dia via SQL). Precisa do extra `bigquery`
+      (`uv sync --extra bigquery`) e do dataset criado antes (deploy/CHECKLIST.md); sem isso, registra um aviso e segue.
+    """
+    out = [ReflectAndRetryToolPlugin(max_retries=2)]
+    dataset = (os.environ.get("BQ_ANALYTICS_DATASET") or "").strip()
+    if dataset:
+        projeto = os.environ.get("GOOGLE_CLOUD_PROJECT") or ""
+        try:
+            from google.adk.plugins.bigquery_agent_analytics_plugin import BigQueryAgentAnalyticsPlugin
+            out.append(BigQueryAgentAnalyticsPlugin(project_id=projeto, dataset_id=dataset))
+        except Exception as e:  # ImportError (falta google-api-core / extra bigquery) ou credencial
+            log.warning("BQ_ANALYTICS_DATASET=%s definido, mas o plugin de analytics não subiu (%s: %s); seguindo sem ele",
+                        dataset, type(e).__name__, str(e)[:120])
+    return out
+
+
+def criar_app(agente: LlmAgent, nome: str = NOME) -> App:
+    """App do ADK: nome + agente raiz + plugins. O Runner recebe o App (padrão trazido de guiwatanabe/iai-cabe-no-bolso)."""
+    return App(name=nome, root_agent=agente, plugins=plugins())
 
 
 @lru_cache(maxsize=1)
@@ -118,19 +180,20 @@ def config_geracao(modelo: str | None = None) -> types.GenerateContentConfig:
 
 
 def criar_agente(modelo: str | None = None) -> LlmAgent:
-    modelo = modelo or modelo_configurado()
+    modelo = nome_do_modelo(modelo) if modelo else modelo_configurado()
     return LlmAgent(
         name=NOME,
-        model=modelo,
+        model=modelo_gemini(modelo),
         description="Agente do banco que ajuda o cliente a pagar a fatura do cartão com um plano que cabe no mês.",
         instruction=instrucao,
         tools=list(tools.FERRAMENTAS),
         generate_content_config=config_geracao(modelo),
-        before_model_callback=callbacks.before_model,
-        after_model_callback=callbacks.after_model,
-        before_tool_callback=callbacks.before_tool,
+        before_model_callback=callbacks.before_model,   # cronômetro + bloqueio de injeção (entrada é dado)
+        after_model_callback=callbacks.after_model,     # guardião + FinOps + trace
+        before_tool_callback=callbacks.before_tool,     # teto de chamadas de ferramenta por turno + consentimento
         after_tool_callback=callbacks.after_tool,
     )
 
 
 root_agent = criar_agente()
+app = criar_app(root_agent)     # adk web / adk run carregam `app` (com os plugins) antes de `root_agent`

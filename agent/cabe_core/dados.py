@@ -156,6 +156,17 @@ def _dentro(pedida: tuple[int, int], cobertura: tuple[int, int]) -> bool:
     return int(cobertura[0]) <= int(pedida[0]) and int(pedida[1]) <= int(cobertura[1])
 
 
+def _teto_bytes_por_consulta() -> int | None:
+    """`travas.bigquery_maximum_bytes_billed` de config/finops.yaml; None (sem teto) só se o YAML não tiver a trava."""
+    try:
+        from . import finops   # import tardio: finops lê config/finops.yaml e não depende de dados
+
+        teto = finops.travas().get("bigquery_maximum_bytes_billed")
+        return int(teto) if teto else None
+    except Exception:   # YAML ausente ou ilegível: a consulta continua parametrizada, só sem o teto
+        return None
+
+
 def _normalizar(r) -> dict:
     """Linha do BigQuery (mapeamento com as colunas da base) -> lançamento normalizado, igual ao do CSV."""
     descr = r["descr"] or ""
@@ -190,6 +201,10 @@ class FonteBigQuery:
 
     Requer o extra `bigquery` (google-cloud-bigquery) e ADC; `executor(sql, parametros) -> iterável de linhas` permite
     injetar a consulta nos testes, sem rede. `consultas` conta as leituras feitas (vai para o trace).
+
+    Trava de custo (padrão trazido de guiwatanabe/iai-cabe-no-bolso, `mcp_server/bq.py`): toda consulta é parametrizada
+    (`@cliente_id`, nunca texto do cliente no SQL) e roda com `maximum_bytes_billed` lido de `config/finops.yaml`
+    (`travas.bigquery_maximum_bytes_billed`, 1 GB); acima disso o BigQuery recusa o job em vez de cobrar.
     """
 
     nome = "bigquery"
@@ -200,11 +215,12 @@ class FonteBigQuery:
     LOCALIZACAO = "us-central1"   # localização do dataset hackathon_dados (não confundir com a do modelo, global)
 
     def __init__(self, projeto: str | None = None, tabela: str | None = None, tabela_90d: str | None = None,
-                 janela_90d: tuple[int, int] | None = None, executor=None):
+                 janela_90d: tuple[int, int] | None = None, executor=None, maximum_bytes_billed: int | None = None):
         self.projeto = projeto or os.environ.get("GOOGLE_CLOUD_PROJECT", "batalha-time-05-xew3")
         self.tabela = tabela or os.environ.get("BIGQUERY_TABELA", TABELA_PADRAO)
         self.tabela_90d = tabela_90d or os.environ.get("BIGQUERY_TABELA_90D") or None
         self.janela_90d = janela_90d or _janela(os.environ.get("BIGQUERY_JANELA_90D"))
+        self.maximum_bytes_billed = maximum_bytes_billed if maximum_bytes_billed is not None else _teto_bytes_por_consulta()
         self._por_cliente: dict[str, dict] = {}   # cliente_id -> {"linhas": [...], "cobertura": (ini, fim) | None (= completa)}
         self._executor = executor
         self._cliente = None
@@ -228,7 +244,8 @@ class FonteBigQuery:
             from google.cloud import bigquery  # type: ignore
 
             job = self._bq().query(sql, job_config=bigquery.QueryJobConfig(
-                query_parameters=[bigquery.ScalarQueryParameter("cliente_id", "STRING", cliente_id)]))
+                query_parameters=[bigquery.ScalarQueryParameter("cliente_id", "STRING", cliente_id)],
+                maximum_bytes_billed=self.maximum_bytes_billed))
             linhas = job.result()
         return [_normalizar(r) for r in linhas]
 
