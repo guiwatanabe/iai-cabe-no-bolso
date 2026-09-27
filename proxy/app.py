@@ -1,22 +1,25 @@
-"""Thin proxy: the ADK api_server routes, forwarded to the `cabe` agent on Vertex AI Agent Engine.
-
-The agent, its config and its sessions live in Agent Engine; this service only relays.
-"""
+"""Demo API in front of the `cabe` agent on Agent Engine; owns identity (uid cookie, cliente_id allowlist)."""
 
 import json
 import os
+import re
+import uuid
 from functools import cache
-from typing import Any
+from typing import Annotated, Any
 
 import vertexai
-from fastapi import FastAPI, HTTPException
+from fastapi import Cookie, FastAPI, HTTPException, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from google.genai import errors
 from pydantic import BaseModel
 
-APP_NAME = "cabe"
+CLIENTES_DEMO = {"3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b"}  # persona of the demo script (hml docs/07)
+SESSION_TTL_S = 86400
+_UID = re.compile(r"[0-9a-f]{32}")
 
 app = FastAPI(title="cabe-no-bolso")
+
+Uid = Annotated[str | None, Cookie()]
 
 
 @cache
@@ -26,15 +29,12 @@ def engine():
     return vertexai.Client(project=project, location=location).agent_engines.get(name=name)
 
 
-class CreateSession(BaseModel):
-    session_id: str | None = None
-    state: dict[str, Any] | None = None
+class NovaSessao(BaseModel):
+    cliente_id: str
 
 
 class RunRequest(BaseModel):
-    app_name: str
-    user_id: str
-    session_id: str
+    sessao_id: str
     new_message: dict[str, Any]  # google.genai Content: {"role": "user", "parts": [{"text": ...}]}
 
 
@@ -43,55 +43,42 @@ async def agent_engine_error(request, exc: errors.APIError):
     return JSONResponse(status_code=exc.code or 502, content={"detail": exc.message})
 
 
-def check_app(app_name: str):
-    if app_name != APP_NAME:
-        raise HTTPException(404, f"App not found: {app_name}")
+def require_uid(uid: str | None) -> str:
+    if not _UID.fullmatch(uid or ""):
+        raise HTTPException(401, "Sessão não iniciada: chame POST /sessao.")
+    return uid
 
 
-@app.post("/apps/{app_name}/users/{user_id}/sessions")
-async def create_session(app_name: str, user_id: str, body: CreateSession | None = None):
-    check_app(app_name)
-    body = body or CreateSession()
-    return await engine().async_create_session(user_id=user_id, session_id=body.session_id, state=body.state)
+@app.post("/sessao")
+async def criar_sessao(body: NovaSessao, response: Response, uid: Uid = None):
+    if body.cliente_id not in CLIENTES_DEMO:
+        raise HTTPException(404, "Cliente não encontrado.")
+    if not _UID.fullmatch(uid or ""):
+        uid = uuid.uuid4().hex
+    session = await engine().async_create_session(
+        user_id=uid, state={"cliente_id": body.cliente_id}, ttl=f"{SESSION_TTL_S}s"
+    )
+    response.set_cookie("uid", uid, max_age=SESSION_TTL_S, httponly=True, secure=True, samesite="lax")
+    return {"sessao_id": session["id"]}
 
 
-@app.post("/apps/{app_name}/users/{user_id}/sessions/{session_id}")
-async def create_session_with_id(app_name: str, user_id: str, session_id: str, state: dict[str, Any] | None = None):
-    check_app(app_name)
-    return await engine().async_create_session(user_id=user_id, session_id=session_id, state=state)
+@app.get("/sessao/{sessao_id}")
+async def ver_sessao(sessao_id: str, uid: Uid = None):
+    return await engine().async_get_session(user_id=require_uid(uid), session_id=sessao_id)
 
 
-@app.get("/apps/{app_name}/users/{user_id}/sessions")
-async def list_sessions(app_name: str, user_id: str):
-    check_app(app_name)
-    return await engine().async_list_sessions(user_id=user_id)
-
-
-@app.get("/apps/{app_name}/users/{user_id}/sessions/{session_id}")
-async def get_session(app_name: str, user_id: str, session_id: str):
-    check_app(app_name)
-    return await engine().async_get_session(user_id=user_id, session_id=session_id)
-
-
-@app.delete("/apps/{app_name}/users/{user_id}/sessions/{session_id}")
-async def delete_session(app_name: str, user_id: str, session_id: str):
-    check_app(app_name)
-    await engine().async_delete_session(user_id=user_id, session_id=session_id)
-
-
-def events(req: RunRequest):
-    check_app(req.app_name)
-    return engine().async_stream_query(user_id=req.user_id, session_id=req.session_id, message=req.new_message)
+def events(req: RunRequest, uid: str | None):
+    return engine().async_stream_query(user_id=require_uid(uid), session_id=req.sessao_id, message=req.new_message)
 
 
 @app.post("/run")
-async def run(req: RunRequest):
-    return [event async for event in events(req)]
+async def run(req: RunRequest, uid: Uid = None):
+    return [event async for event in events(req, uid)]
 
 
 @app.post("/run_sse")
-async def run_sse(req: RunRequest):
-    stream = events(req)  # validate before the 200 goes out
+async def run_sse(req: RunRequest, uid: Uid = None):
+    stream = events(req, uid)  # validate before the 200 goes out
 
     async def sse():
         async for event in stream:
