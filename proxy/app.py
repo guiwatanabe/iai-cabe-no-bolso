@@ -32,10 +32,16 @@ Uid = Annotated[str | None, Cookie()]
 
 
 @cache
+def client():
+    # Kept alive on purpose: a collected vertexai.Client closes the HTTP client its agent engine shares.
+    _, project, _, location, *_ = os.environ["AGENT_ENGINE"].split("/")
+    return vertexai.Client(project=project, location=location)
+
+
+@cache
 def engine():
-    name = os.environ["AGENT_ENGINE"]  # projects/{project}/locations/{location}/reasoningEngines/{id}
-    _, project, _, location, *_ = name.split("/")
-    return vertexai.Client(project=project, location=location).agent_engines.get(name=name)
+    # AGENT_ENGINE = projects/{project}/locations/{location}/reasoningEngines/{id}
+    return client().agent_engines.get(name=os.environ["AGENT_ENGINE"])
 
 
 class Liberacao(BaseModel):

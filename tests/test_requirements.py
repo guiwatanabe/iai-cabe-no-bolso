@@ -14,3 +14,8 @@ def test_agent_requirements_are_pinned_to_the_lock():
         assert pin, f"pin with ==: {line}"
         name, version = pin.groups()
         assert locked[name.lower().replace("_", "-")] == version, line
+
+
+def test_analytics_plugin_imports():
+    # .agent_engine_config.json turns on BQ_ANALYTICS_DATASET; the plugin's deps come from the adk extra.
+    import google.adk.plugins.bigquery_agent_analytics_plugin  # noqa: F401
