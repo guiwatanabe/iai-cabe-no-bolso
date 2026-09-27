@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 from google.adk.agents import LlmAgent
+from google.adk.agents.readonly_context import ReadonlyContext
 from google.adk.apps import App
 from google.adk.models import Gemini
 from google.adk.plugins import ReflectAndRetryToolPlugin
@@ -14,7 +15,7 @@ from . import grounding, guardrails
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-bq_tools = McpToolset(
+fatura_tools = McpToolset(
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
             command=sys.executable,
@@ -24,8 +25,18 @@ bq_tools = McpToolset(
         ),
         timeout=30,
     ),
-    tool_filter=["top_names"],
+    tool_filter=["contexto_fatura", "explicar_fatura"],
 )
+
+INSTRUCTION = (Path(__file__).parent / "instruction.md").read_text(encoding="utf-8")
+
+
+def instruction(ctx: ReadonlyContext) -> str:
+    """InstructionProvider: the prompt has JSON braces, so it must bypass ADK's {state} templating."""
+    modo = ctx.state.get("modo") or "conversa"
+    gatilho = ctx.state.get("gatilho") or "pergunta_cliente"
+    return f"{INSTRUCTION}\n<sessao>\nmodo: {modo}\ngatilho: {gatilho}\n</sessao>\n"
+
 
 root_agent = LlmAgent(
     name="cabe",
@@ -36,21 +47,14 @@ root_agent = LlmAgent(
         # Retries 408/429/5xx; short cap so a demo request never hangs long.
         retry_options=types.HttpRetryOptions(attempts=3, max_delay=8),
     ),
-    instruction=(
-        "Você responde em pt-BR usando apenas dados retornados pelas ferramentas.\n"
-        "- Cada ferramenta devolve `facts` com ids (f1, f2, ...). Para citar qualquer valor, "
-        "escreva o id entre colchetes duplos, ex.: [[f1]]. Nunca escreva números ou valores diretamente.\n"
-        "- Nunca calcule nada. Se o valor pedido não estiver em `facts`, diga que não tem esse dado.\n"
-        "- status: answered se respondeu com fatos; no_data se a ferramenta voltou vazia ou falta o dado; "
-        "out_of_scope se a pergunta não é sobre os dados disponíveis."
-    ),
-    output_schema=grounding.Answer,
-    tools=[bq_tools],
+    instruction=instruction,
+    output_schema=grounding.Resposta,
+    tools=[fatura_tools],
     generate_content_config=types.GenerateContentConfig(temperature=0.1),
     before_model_callback=guardrails.block_unsafe_input,
-    before_tool_callback=guardrails.limit_tool_calls,
+    before_tool_callback=guardrails.before_tool,
     after_tool_callback=grounding.register_facts,
-    after_model_callback=grounding.render_answer,
+    after_model_callback=guardrails.finalize_answer,
 )
 
 plugins = [ReflectAndRetryToolPlugin(max_retries=2)]
