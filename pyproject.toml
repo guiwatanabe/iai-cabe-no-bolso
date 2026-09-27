@@ -1,0 +1,17 @@
+[project]
+name = "cabe-no-bolso"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "google-adk>=2.10.0",
+    "google-cloud-bigquery>=3.45.2",
+    "mcp>=2.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "agents"]

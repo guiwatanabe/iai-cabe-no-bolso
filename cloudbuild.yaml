@@ -1,0 +1,42 @@
+# Triggered on push to main: test -> build -> push -> deploy.
+# Resources (AR repo, service accounts, trigger) come from scripts/bootstrap.sh.
+substitutions:
+  _REGION: us-central1
+  _SERVICE: iai-cabe-no-bolso
+  _IMAGE: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/iai-cabe-no-bolso/app:${COMMIT_SHA}
+  _RUNTIME_SA: cabe-run@${PROJECT_ID}.iam.gserviceaccount.com
+
+steps:
+  - id: test
+    name: ghcr.io/astral-sh/uv:0.12-python3.14-bookworm-slim
+    entrypoint: uv
+    args: [run, --frozen, pytest, -q]
+
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args: [build, -t, $_IMAGE, .]
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, $_IMAGE]
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - $_SERVICE
+      - --image=$_IMAGE
+      - --region=$_REGION
+      - --service-account=$_RUNTIME_SA
+      - --allow-unauthenticated
+      - --min-instances=1
+      - --max-instances=1
+      - --set-env-vars=GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=global,MODEL=gemini-3.5-flash,BQ_MAX_BYTES_BILLED=1000000000,BQ_ANALYTICS_DATASET=agent_logs
+      # Secrets: create in Secret Manager, then map to env vars, e.g.
+      # - --set-secrets=API_KEY=api-key:latest
+
+options:
+  dynamicSubstitutions: true  # _IMAGE references other substitutions
+  logging: CLOUD_LOGGING_ONLY  # required with a user-managed build SA
