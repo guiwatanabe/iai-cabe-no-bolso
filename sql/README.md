@@ -41,4 +41,6 @@ Execute os SQLs pela ordem numérica dentro de `sql/silver/` (01 a 08) e depois 
 
 Os scripts em `sql/checks/*.sql` não fazem parte do pipeline de criação; são consultas de homologação para rodar manualmente contra `gold_contexto_agente` depois da carga (não foram executadas neste ciclo — ver `docs/homologacao.md`).
 
+O que mudou em relação à camada original, e por quê: `docs/mudancas.md`.
+
 Consulte `docs/homologacao.md` antes de interpretar as saídas Gold, pois existem limitações conhecidas no MVP.
