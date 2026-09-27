@@ -4,22 +4,28 @@ Agente em pt-BR (Google ADK + Gemini no Vertex AI) que responde perguntas usando
 servidos por um MCP server com ferramentas curadas e somente leitura.
 
 O agente roda no Vertex AI Agent Engine (agente, config e sessões gerenciadas); o serviço no Cloud Run
-é só um proxy com as mesmas rotas do `adk api_server`.
+é só um proxy com a API da demo, que cuida da identidade: `user_id` é um cookie aleatório emitido pelo proxy
+e `cliente_id` vem de uma lista fixa de personas da demo.
 
 - `agents/cabe/`: agente ADK com guardrails e grounding (o modelo cita fatos como `[[f1]]`, o código renderiza os valores).
-  `.agent_engine_config.json` e `requirements.txt` definem o deploy no Agent Engine
+  `.agent_engine_config.json` (env vars, instâncias, concorrência) e `requirements.txt` definem o deploy no Agent Engine
 - `mcp_server/`: MCP server (stdio) com queries parametrizadas e limite de bytes faturados; vai junto com o agente
-- `proxy/`: FastAPI que repassa sessões e `/run` / `/run_sse` para o Agent Engine
-- `tests/`: testes do grounding e do proxy
+- `proxy/`: FastAPI com `POST /sessao`, `GET /sessao/{id}`, `/run` e `/run_sse`, repassados ao Agent Engine
+- `scripts/deploy.sh`: deploy completo a partir do notebook
+- `tests/`: testes do grounding, do proxy e dos pins de `requirements.txt` contra o `uv.lock`
+- `.github/workflows/test.yml`: ruff + pytest a cada push em `main` e em PRs (sem credenciais do GCP)
+
+Python 3.11 em todo lugar (`.python-version`), igual ao container do Agent Engine.
 
 ## Rodar local
 
 ```bash
-cp agents/cabe/.env.example agents/cabe/.env   # ajuste GOOGLE_CLOUD_PROJECT
+cp .env.example .env               # na raiz: o adk web acha subindo pastas, e o deploy não lê nem envia
 gcloud auth application-default login
 uv sync
 uv run pytest
-uv run adk web agents          # agente local, UI em http://localhost:8000
+uv run ruff check && uv run ruff format --check
+uv run adk web agents              # agente local, UI em http://localhost:8000
 
 # proxy local apontando para o agente já publicado
 AGENT_ENGINE=projects/PROJ/locations/us-central1/reasoningEngines/ID uv run uvicorn proxy.app:app --port 8080
@@ -27,24 +33,33 @@ AGENT_ENGINE=projects/PROJ/locations/us-central1/reasoningEngines/ID uv run uvic
 
 ## Deploy
 
-Push em `main` dispara um build no Cloud Build (`cloudbuild.yaml`): pytest → `adk deploy agent_engine`
-(cria a instância `cabe` no primeiro build, via `scripts/agent_engine.py`) e imagem do proxy → Cloud Run
-com `AGENT_ENGINE` apontando para a instância. Cada build precisa de aprovação em Cloud Build > History.
+O projeto do hackathon (`batalha-time-05-xew3`) é do organizador: o time não cria service accounts,
+permissões nem conexão com o GitHub, então o CI só testa. O deploy roda no notebook, com as suas credenciais do gcloud:
 
-Env vars do agente ficam em `agents/cabe/.agent_engine_config.json`. Um `agents/cabe/.env` local substitui
-todas elas num deploy manual, então publique pelo CI.
+```bash
+scripts/deploy.sh
+```
 
-Setup único do GCP (idempotente): `scripts/bootstrap.sh`.
+Só publica um checkout limpo igual a `origin/main`. Ele roda ruff e pytest, cria o dataset `agent_logs`
+(us-central1) se faltar, publica o agente no Agent Engine (cria a instância `cabe` na primeira vez, via `scripts/agent_engine.py`), gera a imagem do proxy no Cloud Build
+(repositório `agentes`) e publica no Cloud Run. Agente e proxy rodam como `squad-agent-sa`, já criada no projeto.
+
+- Limites de custo: Agent Engine e Cloud Run com mín. 1 e máx. 3 instâncias (sem cold start na demo).
+  Não dá para criar alerta de orçamento no projeto. Depois do pitch, publique de novo com mín. 0.
+- Sessões expiram em 1 dia.
+- Um `agents/cabe/.env` substituiria as env vars do config e iria junto no deploy; o script recusa rodar se ele existir.
 
 ## Exemplo de chamada
 
 ```bash
 URL=$(gcloud run services describe iai-cabe-no-bolso --region us-central1 --format='value(status.url)')
 
-curl -X POST "$URL/apps/cabe/users/demo/sessions/s1" -H 'Content-Type: application/json' -d '{}'
+# o proxy devolve o cookie uid; -c/-b guardam e reenviam
+curl -c jar -X POST "$URL/sessao" -H 'Content-Type: application/json' \
+  -d '{"cliente_id": "3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b"}'     # -> {"sessao_id": "..."}
 
-curl -X POST "$URL/run" -H 'Content-Type: application/json' -d '{
-  "app_name": "cabe", "user_id": "demo", "session_id": "s1",
+curl -b jar -X POST "$URL/run" -H 'Content-Type: application/json' -d '{
+  "sessao_id": "SESSAO_ID",
   "new_message": {"role": "user", "parts": [{"text": "Qual foi o nome mais registrado na CA em 2000?"}]}
 }'
 ```

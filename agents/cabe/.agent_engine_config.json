@@ -1,5 +1,8 @@
 {
   "extra_packages": ["../../mcp_server"],
+  "min_instances": 1,
+  "max_instances": 3,
+  "container_concurrency": 36,
   "env_vars": {
     "MODEL": "gemini-3.5-flash",
     "BQ_MAX_BYTES_BILLED": "1000000000",
