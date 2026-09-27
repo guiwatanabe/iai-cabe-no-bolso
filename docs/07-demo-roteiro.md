@@ -1,5 +1,7 @@
 # 07 · Roteiro da demo e do pitch
 
+> **Aviso (27/09, madrugada).** A jornada e as personas da demo seguem a **spec da Gi** (`docs/spec-gi-2026-09-27.pdf`) e o **PRD 1.0** (`docs/09-prd.html` §7): jornada em 9 passos com gatilho na escolha de pagar abaixo do total e consentimento antes do motor; personas **Ana · Escorregão** (`755627ab-804b-4211-b0ea-f4ebacc58716`, ago/2025, fatura R$ 2.955,00, cobertura curta de 7 dias) e **Bruno · Rolando a fatura** (`3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b`, set/2025, fatura R$ 3.619,95, consignado 10× R$ 110,51); pitch de **4 minutos** em 5 blocos. Os números que a demo mostra saem de `agent/cabe_core` e estão em `demo/mock/*.json` e no `README.md` da raiz. O roteiro abaixo (data simulada 20/02/2025, persona única, ~3 minutos) é o histórico da versão de 26/09 e foi substituído; `docs/decisoes.md` registra a troca (pendência 4).
+
 Formato pedido pela staff: algo navegável, com QR code, que a banca usa no celular enquanto o time apresenta (~3 minutos). Tudo que é simulado aparece na tela.
 
 ## Persona (cliente real da base)

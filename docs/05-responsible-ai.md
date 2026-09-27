@@ -4,7 +4,7 @@ Norte: "confiança acima de tudo" (abertura). Um agente que fala de dinheiro com
 
 ## Base normativa (conferir o texto vigente antes do pitch)
 
-- **Resolução Conjunta CMN/BCB nº 8/2025** (educação financeira): orientar o cliente, prevenir superendividamento, considerar perfil e necessidades, ter governança e métricas. Texto: https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?numero=8&tipo=Resolu%C3%A7%C3%A3o%2520Conjunta
+- **Resolução Conjunta CMN/BCB nº 8, de 21/12/2023** (educação financeira; norma confirmada pelo time na spec de 27/09): orientar o cliente, prevenir superendividamento, considerar perfil e necessidades, ter governança e métricas. Texto: https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?numero=8&tipo=Resolu%C3%A7%C3%A3o%2520Conjunta
 - **Lei 14.181/2021** (superendividamento): crédito responsável, preservação do mínimo existencial, proibição de assédio na oferta de crédito.
 - **Lei 14.690/2023 e Res. CMN 5.112**: rotativo limitado a um ciclo; juros e encargos do rotativo e do parcelamento da fatura não passam de 100% do valor original da dívida.
 - **CDC, art. 39**: venda casada proibida (seguro como condição do crédito).

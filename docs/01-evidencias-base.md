@@ -79,3 +79,11 @@ Critério do time (reunião das 16h09): meses no ano pagando menos que o total.
 
 - **Grupo B, CLT sem financiamento:** `3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b` (`data/personas/3e7d20b2_grupo_b.json`). Salário R$ 3.787 no dia 7; fatura dia 20; contas fixas ~R$ 929; rolou 5 faturas, 4 seguidas (fev–mai); R$ 2.373 de juros no ano (5,2% da renda anual). Gasto atípico em jan–fev (cartão R$ 7.045 e R$ 9.317, Lazer R$ 13.530 no ano) e delivery+app ~R$ 748 por mês. Persona da demo.
 - **Grupo C, CLT com financiamento:** `0a37f67b-77d5-4ab8-af28-2d88aaa252f1`. Salário R$ 5.332 (dia 7), financiamento R$ 3.814 (dia 8), escola R$ 673 (dia 11), fatura dia 15; rolou 9 de 12; R$ 1.047 de juros. Serve para mostrar o C.
+
+## 9. Conferência da Spec da Gi (27/09, `confere_spec_gi.py`)
+
+- [F] Fator 1,33: a mediana de fatura ÷ compras no cartão do mês anterior é 1,33 nos meses integrais. Nos meses rolados, 1,33 × compras erra a fatura exata em 18% na mediana (mais de 20% em 46% dos meses). Serve para o agregado e para projetar faturas futuras, não para a fatura de um cliente. Persona `3e7d20b2`: fevereiro exato R$ 7.612 contra ~R$ 9.370 pelo fator; março exato R$ 9.433 contra ~R$ 12.391.
+- [F] Não pago no ano pela reconstrução exata: A 7,9% da fatura (R$ 173 mil); B 18,3% (R$ 1,55 milhão); A+B R$ 1,72 milhão. Fatura paga no vencimento: A 92,1%, B 81,7%. A spec, pelo fator, tem 7,4% / 19,9% / ~R$ 1,7 milhão / 92,6% / 80,1%: agregado próximo.
+- [F] Os R$ 246 / R$ 574 / R$ 877 por cliente (A/B/C) são todos os "Juros pagos" do ano, não só cheque especial. Rotativo: R$ 177 / R$ 514 / R$ 858 na mediana. Juros de cheque especial em mês de fatura inteira aparecem em 42% dos clientes do A, 37% do B e 21% do C; a mediana por cliente é zero.
+- [F] Gasto no cartão por cliente no ano (mediana): nunca rola R$ 15.038, A R$ 14.054, B R$ 16.407, C R$ 15.105. Parecido entre grupos, como diz a spec (que cita R$ 15,8–17,3 mil com outra definição).
+- [F] A distância entre o dia do salário e o vencimento não muda a taxa de fatura rolada no A+B: 27% a 30% em qualquer faixa (5–10, 10–15, 15–20, 20+ dias). Mudar o vencimento não tem evidência de resolver a causa; fica como opção, não como argumento.

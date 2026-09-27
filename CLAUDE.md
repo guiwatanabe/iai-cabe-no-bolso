@@ -4,16 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Cabe no Bolso** · Batalha de Agentes Itaú × Google, Time 05.
 
-Leia isto inteiro antes de qualquer ação. Depois leia `docs/02-proposta-produto.md`, `docs/04-arquitetura-gcp.md` e `docs/05-responsible-ai.md`. A verdade do projeto está em `docs/`; esta conversa e qualquer transcrição são histórico.
+Leia isto inteiro antes de qualquer ação. Depois leia `docs/spec-gi-2026-09-27.pdf` (spec de produto da Gi: fonte de verdade do produto; onde `agent/README.md` e `demo/README.md` divergirem dela, a spec vence), `docs/09-prd.html` (PRD 1.0: spec + correções de dados + camada técnica e contratos), `docs/02-proposta-produto.md`, `docs/04-arquitetura-gcp.md` e `docs/05-responsible-ai.md`. A verdade do projeto está em `docs/`; esta conversa e qualquer transcrição são histórico.
 
 ## O que é
 
-Agente do banco, dentro do ia.i, que assume tirar o cliente da fatura rolada: percebe o sinal, pede consentimento, diagnostica a causa no extrato, classifica a urgência (A/B/C), monta um plano com data para acabar (crédito é ferramenta, não produto), dá o teto do mês e volta a cada fatura até 3 inteiras seguidas. Pitch em 27/09/2026 (~3 min) com demo navegável por QR code. Entregáveis: proposta de negócio, protótipo funcional, racional, desenho da solução, arquitetura.
+Agente do banco, dentro do ia.i, que assume tirar o cliente da fatura rolada: percebe o sinal, pede consentimento, diagnostica a causa no extrato, classifica a urgência (A/B/C; na spec: Escorregão 1–2 roladas, Rolando a fatura 3–5, No limite 6+), monta um plano com data para acabar (crédito é ferramenta, não produto), dá o teto do mês e volta a cada fatura até 3 inteiras seguidas. Pitch em 27/09/2026 (**4 min**) com demo navegável por QR code; **código no GitHub às 11h de 27/09** (congelamento às 10h45); a banca avalia arquitetura, negócio, dados e o `README.md` da raiz (segurança, guardrails, FinOps). Entregáveis: proposta de negócio, protótipo funcional, racional, desenho da solução, arquitetura.
 
 ## Mapa do repositório
 
-- `docs/00`–`08`, `docs/decisoes.md`: briefing, evidências, proposta, racional, arquitetura, Responsible AI, design system, demo, plano, decisões. `docs/arquivo/`: histórico (não editar).
-- `data/`: base local versionada (`extrato_sintetico.csv.gz`, SHA em `data/README.md`) e `personas/` (o JSON da `3e7d20b2` é o gabarito dos testes, em centavos).
+- `docs/spec-gi-2026-09-27.pdf`: spec de produto (Gi). `docs/09-prd.html`: PRD 1.0 (contratos de `cabe_core` e da API, guardrails, evals, FinOps, plano por pessoa). `docs/10-contrato-dados-gold.md`: contrato das views BigQuery. `docs/00`–`08`, `docs/decisoes.md`: briefing, evidências, proposta, racional, arquitetura, Responsible AI, design system, demo, plano, decisões. `docs/arquivo/`: histórico (não editar).
+- `data/`: base local versionada (`extrato_sintetico.csv.gz`, SHA em `data/README.md`) e `personas/` (o JSON da `3e7d20b2` é o gabarito dos testes, em centavos; `755627ab_escorregao.json` é a Escorregão da demo).
+- Personas e datas da demo (regras fecham sem olhar o futuro): **Ana · Escorregão** `755627ab-804b-4211-b0ea-f4ebacc58716` em `202508` (fatura R$ 2.955,00, mínimo pago, cobertura curta de 7 dias); **Bruno · Rolando a fatura** `3e7d20b2-4c4f-450a-bbd2-e60bfda81f0b` em `202509` (4 roladas antes, fatura R$ 3.619,95, consignado 10× R$ 110,51); reserva `8dc79559-e45a-46bd-bd8d-a9b818642251` em `202508`. Cadastradas em `config/taxas.yaml: personas_demo`.
 - `analise/`: scripts exploratórios que geraram os números (não são produto).
 - `config/taxas.yaml`: única fonte de taxas e parâmetros.
 - `agent/`, `demo/`: especificações do que construir (README em cada um; contratos das ferramentas em `agent/README.md`).
@@ -34,7 +35,7 @@ Agente do banco, dentro do ia.i, que assume tirar o cliente da fatura rolada: pe
 
 Especificada em `docs/04`, `agent/README.md` e `demo/README.md`. O que atravessa esses arquivos:
 
-- **Um serviço.** FastAPI + ADK Runner no Cloud Run serve a API (`POST /sessao`, `POST /mensagem`, `POST /avancar-mes`, `GET /trace/{sessao_id}`) e a demo estática em `/`. Atrás dele, um único `LlmAgent` (Gemini) com ferramentas e callbacks.
+- **Um serviço.** FastAPI + ADK Runner no Cloud Run serve a API com prefixo `/api` (`POST /api/sessao`, `POST /api/consentimento`, `POST /api/mensagem`, `POST /api/avancar-mes`, `GET /api/trace/{sessao_id}`, `GET /api/painel/{sessao_id}`, `GET /api/saude`; contrato em `docs/09-prd.html` §6 e `demo/README.md`) e a demo estática em `/`. Atrás dele, um único `LlmAgent` (Gemini) com ferramentas e callbacks.
 - **Camadas.** `cabe_core`: funções puras, sem rede. `tools.py`: só embrulha `cabe_core` como function tools. `policy.py`: elegibilidade, "cabe no mês", C → humano e registro de taxas. `cabe_core/dados.py`: única porta para os dados, CSV (pandas) ou BigQuery com a mesma interface, escolhido por `DADOS=csv|bigquery`.
 - **Cadeia de rastreabilidade** (é o que a banca inspeciona; quebrar um elo quebra a regra 1): `origem` em cada retorno de `cabe_core` → números acumulados em `state["numeros_validados"]` → guardião confere o texto do modelo contra esse conjunto e barra a lista negra → API devolve `numeros_validados[]` → a demo marca cada número exibido com `data-origem` → `after_tool_callback` grava o trace do painel "como cheguei aqui" e do Cloud Logging.
 - **Estado de sessão:** `cliente_id`, `consentimento`, `mes_simulado`, `plano`, `numeros_validados`.
@@ -56,7 +57,7 @@ shasum -a 256 data/extrato_sintetico.csv.gz   # conferir com o SHA de data/READM
 python3 analise/grupos_abc.py                 # exploratório; pandas; imprime no terminal
 ```
 
-Agente, a partir de `agent/` (previstos em `agent/README.md`; conferir se `agent/pyproject.toml` já existe):
+Agente, a partir de `agent/` (`agent/pyproject.toml` existe; `cabe_core`, `cabe_no_bolso/` (agent, tools, callbacks, runtime, policy), `server/`, `evals/` e os testes estão prontos; 80 testes verdes sem chamar o modelo):
 
 ```bash
 uv sync && cp .env.example .env              # GOOGLE_API_KEY (dev) ou ADC; DADOS=csv
@@ -74,7 +75,7 @@ Deploy (`docs/04`): Cloud Build → Artifact Registry `agentes` → `gcloud run 
 
 ## Stack e ambiente
 
-- Python 3.11, `uv`, Google ADK (`from google.adk.agents import LlmAgent`; docs em https://adk.dev), Gemini (modelo do evento; o guia cita `gemini-3.8-flash`, conferir na Agent Platform), FastAPI, pandas, `pytest`.
+- Python 3.11, `uv`, Google ADK (`from google.adk.agents import LlmAgent`; docs em https://adk.dev), Gemini (`gemini-3.8-flash` via Vertex AI com `GOOGLE_GENAI_USE_VERTEXAI=TRUE` e `GOOGLE_CLOUD_LOCATION=global`; us-central1 dá 404 para esse modelo; reserva `gemini-2.5-flash`; nome sempre em variável `MODELO`), FastAPI, pandas, `pytest`.
 - GCP: projeto `batalha-time-05-xew3`, região `us-central1`, BigQuery `hackathon_dados.extrato_sintetico`, Cloud Run, Cloud Build, Artifact Registry `agentes`, Secret Manager `gemini-api-key`.
 - Variáveis: `GOOGLE_CLOUD_PROJECT=batalha-time-05-xew3`, `DADOS=csv|bigquery`, `TAXAS=config/taxas.yaml`; `GOOGLE_API_KEY` só em dev (em produção, Secret Manager ou ADC).
 - Autenticação local: `gcloud config configurations activate mana-gsoares` (conta pessoal vinculada ao projeto) e ADC. A configuração `default` do gcloud é de outro cliente: não usar. Nunca gravar chave no repo; `.env` está no `.gitignore`.
@@ -83,7 +84,7 @@ Deploy (`docs/04`): Cloud Build → Artifact Registry `agentes` → `gcloud run 
 ## Convenções
 
 - Dinheiro em centavos (`int`); formatação só na borda. Datas como `anomes` (AAAAMM) internamente.
-- Funções de `cabe_core` são puras e retornam `dict` com `origem` por número. Teste primeiro com a persona `3e7d20b2` reproduzindo `docs/01-evidencias-base.md` §8 e `docs/07`.
+- Funções de `cabe_core` são puras e retornam `dict` com `origem` por número. Teste primeiro com a persona `3e7d20b2` reproduzindo o gabarito `data/personas/3e7d20b2_grupo_b.json` e `docs/01-evidencias-base.md` §8; a jornada das duas personas está em `docs/09-prd.html` §7.1 (o roteiro antigo de `docs/07` é histórico).
 - Português brasileiro em tudo que o cliente vê; código e identificadores em português simples sem acento (`montar_plano`, `sobra_do_mes`).
 - Commits pequenos, em português, no imperativo. Não fazer push sem o Maná pedir.
 - Antes de codificar uma etapa, conferir `docs/08-plano-execucao.md` e a definição de pronto.
@@ -99,7 +100,7 @@ Deploy (`docs/04`): Cloud Build → Artifact Registry `agentes` → `gcloud run 
 
 ## Definição de pronto da demo
 
-A banca abre pelo QR no celular, escolhe pagar o mínimo, dá consentimento, vê a causa, vê duas saídas com custo, confirma, avança três meses e abre "como cheguei aqui". Nenhum número sem origem. Rodapé de simulação em todas as telas. Golden set de `docs/05` 10/10. Funciona com CSV se o BigQuery falhar.
+A banca abre pelo QR no celular, escolhe pagar abaixo do total (mínimo ou outro valor), dá consentimento, vê a causa, vê as saídas com custo ao lado do rotativo, confirma, avança três meses (sem LLM) e abre "como cheguei aqui", para as duas personas (Ana ago/2025, Bruno set/2025). Nenhum número sem origem (`guardiao.removidos` vazio). Rodapé de simulação em todas as telas; taxas `conferir` rotuladas "ilustrativa". Golden set de `docs/05` 10/10 + 4 casos da mentora (`docs/09-prd.html` §5.4), resultado em `docs/decisoes.md`. Funciona com CSV se o BigQuery falhar (`GET /api/saude` diz a fonte). `README.md` da raiz com segurança, guardrails e FinOps.
 
 ## Pessoas
 
