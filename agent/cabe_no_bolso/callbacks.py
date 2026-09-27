@@ -146,9 +146,22 @@ def guardiao_texto(texto: str, numeros_validados: list[dict] | None) -> tuple[st
     if not texto or not texto.strip():
         return texto, relatorio
 
+    paragrafos = [p for p in re.split(r"\n\s*\n", texto) if p.strip()]
+    saidas_par: list[list[str]] = []
+    flags = {"pediu": False, "fora": False}          # um único pedido de conferência / aviso de fora do plano por resposta
+    for paragrafo in paragrafos:
+        saida: list[str] = []
+        saidas_par.append(saida)
+        _guardiao_paragrafo(paragrafo, validos, relatorio, saida, flags)
+    novo = "\n\n".join(" ".join(s.strip() for s in saida).strip() for saida in saidas_par if saida).strip() or RESPOSTA_VAZIA
+    relatorio["alterado"] = novo != texto.strip() or bool(relatorio["removidos"]) or relatorio["substituicoes"] > 0
+    return novo, relatorio
+
+
+def _guardiao_paragrafo(texto: str, validos: list, relatorio: dict, saida: list[str], flags: dict) -> None:
+    """Uma passada do guardião num parágrafo (uma bolha do chat); as frases removidas viram um único pedido de conferência."""
     frases = [f for f in _RE_FRASES.split(texto) if f is not None]
-    saida: list[str] = []
-    pediu_confirmacao = fora_do_plano = False
+    pediu_confirmacao, fora_do_plano = flags["pediu"], flags["fora"]
     for frase in frases:
         if not frase.strip():
             continue
@@ -189,10 +202,7 @@ def guardiao_texto(texto: str, numeros_validados: list[dict] | None) -> tuple[st
                 pediu_confirmacao = True
             continue
         saida.append(f)
-
-    novo = " ".join(s.strip() for s in saida).strip() or RESPOSTA_VAZIA
-    relatorio["alterado"] = novo != texto.strip() or bool(relatorio["removidos"]) or relatorio["substituicoes"] > 0
-    return novo, relatorio
+    flags["pediu"], flags["fora"] = pediu_confirmacao, fora_do_plano
 
 
 # ------------------------------------------------------------------ callbacks do ADK

@@ -88,8 +88,11 @@ def config_pensamento(modelo: str) -> types.ThinkingConfig | None:
     """Raciocínio curto: o modelo só conversa a partir de contas prontas; pensar longo custa tokens e latência.
 
     PENSAMENTO=minimal|low|medium|high (Gemini 3.x, thinking_level) ou budget:<n> (Gemini 2.5, thinking_budget).
+    Padrão 'budget:0' (thinking_budget=0, o mínimo): o gemini-3.8-flash no Vertex (global) aceita thinking_budget=0 e
+    devolve 400 "Thinking level is unsupported: THINKING_LEVEL_MINIMAL" para thinking_level=minimal (27/09; evals com
+    budget:0 em agent/evals/resultado-gi-2026-09-27.md: 22 de 22 exemplos da Gi). 'low' continua disponível por PENSAMENTO.
     """
-    esc = (os.environ.get("PENSAMENTO") or ("low" if modelo.startswith("gemini-3") else "budget:256")).lower()
+    esc = (os.environ.get("PENSAMENTO") or "budget:0").lower()
     if esc.startswith("budget:"):
         return types.ThinkingConfig(thinking_budget=int(esc.split(":", 1)[1]))
     if esc in ("minimal", "low", "medium", "high"):
